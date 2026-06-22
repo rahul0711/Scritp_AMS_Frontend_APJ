@@ -4,13 +4,14 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { login } from '@/services/auth';
 import logo from '../../assets/logo.png';
 
@@ -18,7 +19,6 @@ export default function LoginScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,125 +45,205 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-[#123499]"
+      style={styles.container}
     >
-      {/* ── Branded header ── */}
-      <View className="flex-1 items-center justify-center px-6">
-        {/* Logo card */}
-        <View className="w-64 h-20 bg-white rounded-md items-center justify-center mb-7 px-4 shadow-md">
-          <Image source={logo} className="w-56 h-16" resizeMode="contain" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Top spacer ── */}
+        <View style={styles.topSpacer} />
+
+        {/* ── Script India Logo ── */}
+        <View style={styles.logoWrapper}>
+          <Image source={logo} style={styles.logoImage} resizeMode="contain" />
         </View>
 
-        {/* App name */}
-        <Text className="text-white text-3xl font-black tracking-widest uppercase mb-1">
-          Script AMS
-        </Text>
-        <Text className="text-white/50 text-xs tracking-[3px] uppercase mb-6">
-          Attendance Management System
-        </Text>
+        {/* ── App Title ── */}
+        <Text style={styles.appTitle}>AMS QR Scanner</Text>
+        <Text style={styles.appSubtitle}>Employee Attendance System</Text>
 
-        {/* Powered by badge */}
-        <View className="flex-row items-center gap-x-1">
-          <Text className="text-white/40 text-xs">Powered by</Text>
-          <Text className="text-white/60 text-xs font-semibold"> SCRIPT </Text>
-          <View className="bg-[#0d2580] border border-white/20 px-2 py-0.5 rounded-sm">
-            <Text className="text-white text-xs font-bold tracking-wider">INDIA</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* ── Login card ── */}
-      <View className="bg-white rounded-t-3xl px-6 pt-4 pb-10 shadow-2xl">
-        {/* Drag handle */}
-        <View className="w-10 h-1 bg-gray-200 rounded-full self-center mb-7" />
-
-        <Text className="text-amber-500 text-xs font-bold tracking-[3px] uppercase mb-1">
-          Secure Access
-        </Text>
-        <Text className="text-gray-900 text-2xl font-bold mb-6">
-          Sign in to your account
-        </Text>
-
-        {/* Username */}
-        <Text className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">
-          Username
-        </Text>
-        <View className="flex-row items-center bg-gray-50 border border-gray-100 rounded-xl px-4 h-14 mb-4">
-          <Ionicons name="person-outline" size={18} color="#9ca3af" />
+        {/* ── Login Card ── */}
+        <View style={styles.card}>
+          {/* Username */}
+          <Text style={styles.fieldLabel}>Username</Text>
           <TextInput
-            className="flex-1 text-gray-800 text-sm ml-3"
+            style={styles.input}
             placeholder="Enter your username"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor="#aab0c0"
             value={username}
             onChangeText={text => { setUsername(text); setError(''); }}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="next"
           />
-        </View>
 
-        {/* Password */}
-        <Text className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">
-          Password
-        </Text>
-        <View className="flex-row items-center bg-gray-50 border border-gray-100 rounded-xl px-4 h-14 mb-2">
-          <Ionicons name="lock-closed-outline" size={18} color="#9ca3af" />
+          {/* Password */}
+          <Text style={styles.fieldLabel}>Password</Text>
           <TextInput
-            className="flex-1 text-gray-800 text-sm ml-3"
-            placeholder="••••••••"
-            placeholderTextColor="#9ca3af"
+            style={styles.input}
+            placeholder="Enter your password"
+            placeholderTextColor="#aab0c0"
             value={password}
             onChangeText={text => { setPassword(text); setError(''); }}
-            secureTextEntry={!showPassword}
+            secureTextEntry
             returnKeyType="done"
             onSubmitEditing={handleLogin}
           />
-          <TouchableOpacity onPress={() => setShowPassword(v => !v)} hitSlop={10}>
-            <Ionicons
-              name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-              size={18}
-              color="#9ca3af"
-            />
+
+          {/* Error */}
+          {error ? (
+            <Text style={styles.errorText}>{error}</Text>
+          ) : null}
+
+          {/* Login Button */}
+          <TouchableOpacity
+            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginBtnText}>Login</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Forgot password */}
-        <View className="items-end mb-5">
-          <TouchableOpacity hitSlop={10}>
-            <Text className="text-[#123499] text-sm font-semibold">Forgot password?</Text>
-          </TouchableOpacity>
-        </View>
+        {/* ── Bottom spacer ── */}
+        <View style={styles.bottomSpacer} />
 
-        {/* Error */}
-        {error ? (
-          <View className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 mb-4">
-            <Text className="text-red-500 text-xs font-medium text-center">{error}</Text>
-          </View>
-        ) : null}
-
-        {/* Sign in button */}
-        <TouchableOpacity
-          className="bg-[#123499] rounded-xl h-14 items-center justify-center flex-row gap-x-2"
-          onPress={handleLogin}
-          disabled={loading}
-          activeOpacity={0.85}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Text className="text-white font-bold text-sm tracking-[4px] uppercase">
-                Sign In
-              </Text>
-              <Ionicons name="arrow-forward" size={16} color="#fff" />
-            </>
-          )}
-        </TouchableOpacity>
-
-        <Text className="text-gray-300 text-xs text-center mt-5">
-          Created by Script India
-        </Text>
-      </View>
+        {/* ── Footer ── */}
+        <Text style={styles.footer}>Design &amp; Developed By SCRIPT INDIA</Text>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+
+  /* ── Spacers ── */
+  topSpacer: {
+    height: 60,
+  },
+  bottomSpacer: {
+    flex: 1,
+    minHeight: 40,
+  },
+
+  /* ── Logo ── */
+  logoWrapper: {
+    marginBottom: 28,
+    alignItems: 'center',
+  },
+  logoImage: {
+    width: 160,
+    height: 56,
+  },
+
+  /* ── Titles ── */
+  appTitle: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#1e3a8a',
+    textAlign: 'center',
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  appSubtitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a1a2e',
+    textAlign: 'center',
+    marginBottom: 28,
+    letterSpacing: 0.2,
+  },
+
+  /* ── Card ── */
+  card: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 26,
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    // Android shadow
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#e8ecf4',
+  },
+
+  /* ── Form fields ── */
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1a1a2e',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  input: {
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: '#d1d9e8',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    fontSize: 14,
+    color: '#1a1a2e',
+    backgroundColor: '#fafbff',
+    marginBottom: 16,
+  },
+
+  /* ── Error ── */
+  errorText: {
+    color: '#e53935',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+
+  /* ── Login button ── */
+  loginBtn: {
+    backgroundColor: '#1e3a8a',
+    borderRadius: 10,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  loginBtnDisabled: {
+    opacity: 0.7,
+  },
+  loginBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  /* ── Footer ── */
+  footer: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1a1a2e',
+    textAlign: 'center',
+    paddingBottom: 10,
+  },
+});
