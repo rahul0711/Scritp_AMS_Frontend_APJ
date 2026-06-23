@@ -23,7 +23,7 @@ export type AuthResult = {
 };
 
 const api = axios.create({
-  baseURL: 'https://demo.scriptindia.in:8059',
+  baseURL: 'https://apjapi.scriptindia.in/',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10000,
 });
