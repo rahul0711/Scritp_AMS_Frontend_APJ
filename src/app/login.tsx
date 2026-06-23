@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -13,10 +12,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { login } from '@/services/auth';
-import logo from '../../assets/logo.png';
+import { useAuthStore } from '@/store/authStore';
+import logo from '../../assets/logos.png';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const setAuth = useAuthStore((s) => s.setAuth);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,11 +31,10 @@ export default function LoginScreen() {
     setLoading(true);
     setError('');
     try {
-      const { user, role } = await login(username.trim(), password);
-      router.replace({
-        pathname: role === 'faculty' ? '/faculty' : '/student',
-        params: { user: JSON.stringify(user) },
-      });
+      const { allRecords, role } = await login(username.trim(), password);
+      // Persist to store (AsyncStorage backed)
+      setAuth(allRecords, role);
+      router.replace(role === 'faculty' ? '/faculty' : '/student');
     } catch (err: any) {
       setError(err?.message ?? 'Something went wrong. Please try again.');
     } finally {
@@ -43,207 +43,95 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View className="flex-1 bg-neutral-100">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
       >
-        {/* ── Top spacer ── */}
-        <View style={styles.topSpacer} />
-
-        {/* ── Script India Logo ── */}
-        <View style={styles.logoWrapper}>
-          <Image source={logo} style={styles.logoImage} resizeMode="contain" />
-        </View>
-
-        {/* ── App Title ── */}
-        <Text style={styles.appTitle}>AMS QR Scanner</Text>
-        <Text style={styles.appSubtitle}>Employee Attendance System</Text>
-
-        {/* ── Login Card ── */}
-        <View style={styles.card}>
-          {/* Username */}
-          <Text style={styles.fieldLabel}>Username</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your username"
-            placeholderTextColor="#aab0c0"
-            value={username}
-            onChangeText={text => { setUsername(text); setError(''); }}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="next"
+        <ScrollView
+          contentContainerClassName="flex-grow justify-center items-center px-7 py-10"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Logo */}
+          <Image
+            source={logo}
+            className="w-40 h-40 mb-8"
+            resizeMode="contain"
           />
 
-          {/* Password */}
-          <Text style={styles.fieldLabel}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your password"
-            placeholderTextColor="#aab0c0"
-            value={password}
-            onChangeText={text => { setPassword(text); setError(''); }}
-            secureTextEntry
-            returnKeyType="done"
-            onSubmitEditing={handleLogin}
-          />
-
-          {/* Error */}
-          {error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : null}
-
-          {/* Login Button */}
-          <TouchableOpacity
-            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-            activeOpacity={0.85}
+          {/* Card */}
+          <View
+            className="w-full bg-white rounded-2xl px-6 py-7"
+            style={{ elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12 }}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.loginBtnText}>Login</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            <Text className="text-[22px] font-bold text-neutral-900 mb-1">
+              Welcome Back
+            </Text>
+            <Text className="text-sm text-neutral-400 mb-6">
+              Sign in to continue
+            </Text>
 
-        {/* ── Bottom spacer ── */}
-        <View style={styles.bottomSpacer} />
+            {/* Username */}
+            <Text className="text-[13px] font-semibold text-neutral-700 mb-1.5">
+              Username
+            </Text>
+            <TextInput
+              className="h-12 border border-neutral-200 rounded-xl px-3.5 text-[15px] text-neutral-900 bg-neutral-50 mb-4"
+              placeholder="Enter your username"
+              placeholderTextColor="#b0b0b0"
+              value={username}
+              onChangeText={text => { setUsername(text); setError(''); }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+            />
 
-        {/* ── Footer ── */}
-        <Text style={styles.footer}>Design &amp; Developed By SCRIPT INDIA</Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Password */}
+            <Text className="text-[13px] font-semibold text-neutral-700 mb-1.5">
+              Password
+            </Text>
+            <TextInput
+              className="h-12 border border-neutral-200 rounded-xl px-3.5 text-[15px] text-neutral-900 bg-neutral-50 mb-4"
+              placeholder="Enter your password"
+              placeholderTextColor="#b0b0b0"
+              value={password}
+              onChangeText={text => { setPassword(text); setError(''); }}
+              secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+            />
+
+            {/* Error */}
+            {error ? (
+              <Text className="text-red-600 text-[13px] font-medium text-center mb-3">
+                {error}
+              </Text>
+            ) : null}
+
+            {/* Login Button */}
+            <TouchableOpacity
+              className={`bg-[#1a1a2e] rounded-xl h-[50px] items-center justify-center mt-1 ${loading ? 'opacity-70' : ''}`}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text className="text-white text-base font-semibold tracking-wide">
+                  Login
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer */}
+          <Text className="text-xs text-neutral-400 text-center mt-8">
+            Designed & Developed By SCRIPT INDIA
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-  },
-
-  /* ── Spacers ── */
-  topSpacer: {
-    height: 60,
-  },
-  bottomSpacer: {
-    flex: 1,
-    minHeight: 40,
-  },
-
-  /* ── Logo ── */
-  logoWrapper: {
-    marginBottom: 28,
-    alignItems: 'center',
-  },
-  logoImage: {
-    width: 160,
-    height: 56,
-  },
-
-  /* ── Titles ── */
-  appTitle: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#1e3a8a',
-    textAlign: 'center',
-    marginBottom: 6,
-    letterSpacing: 0.3,
-  },
-  appSubtitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1a1a2e',
-    textAlign: 'center',
-    marginBottom: 28,
-    letterSpacing: 0.2,
-  },
-
-  /* ── Card ── */
-  card: {
-    width: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 26,
-    // iOS shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    // Android shadow
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: '#e8ecf4',
-  },
-
-  /* ── Form fields ── */
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1a1a2e',
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  input: {
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: '#d1d9e8',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: '#1a1a2e',
-    backgroundColor: '#fafbff',
-    marginBottom: 16,
-  },
-
-  /* ── Error ── */
-  errorText: {
-    color: '#e53935',
-    fontSize: 13,
-    fontWeight: '500',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-
-  /* ── Login button ── */
-  loginBtn: {
-    backgroundColor: '#1e3a8a',
-    borderRadius: 10,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-  },
-  loginBtnDisabled: {
-    opacity: 0.7,
-  },
-  loginBtnText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-
-  /* ── Footer ── */
-  footer: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1a1a2e',
-    textAlign: 'center',
-    paddingBottom: 10,
-  },
-});

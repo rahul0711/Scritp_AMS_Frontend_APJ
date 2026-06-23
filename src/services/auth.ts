@@ -6,6 +6,9 @@ export type UserData = {
   facultyName: string;
   userName: string;
   userType: string;
+  courseId: number;
+  subjectId: number;
+  semesterId: number;
   courseName: string;
   semesterName: string;
   subjectName: string;
@@ -14,7 +17,8 @@ export type UserData = {
 };
 
 export type AuthResult = {
-  user: UserData;
+  /** All allotted records for the user (each with a course/semester/subject combo) */
+  allRecords: UserData[];
   role: 'faculty' | 'student';
 };
 
@@ -28,21 +32,21 @@ async function loginWithType(
   username: string,
   password: string,
   userType: '2' | '3',
-): Promise<UserData | null> {
+): Promise<UserData[]> {
   const { data } = await api.post<UserData[]>('/FacultyAuthentication', {
     UserName: username,
     Password: password,
     UserType: userType,
   });
-  return Array.isArray(data) && data.length > 0 ? data[0] : null;
+  return Array.isArray(data) && data.length > 0 ? data : [];
 }
 
 export async function login(username: string, password: string): Promise<AuthResult> {
-  const faculty = await loginWithType(username, password, '2');
-  if (faculty) return { user: faculty, role: 'faculty' };
+  const facultyRecords = await loginWithType(username, password, '2');
+  if (facultyRecords.length > 0) return { allRecords: facultyRecords, role: 'faculty' };
 
-  const student = await loginWithType(username, password, '3');
-  if (student) return { user: student, role: 'student' };
+  const studentRecords = await loginWithType(username, password, '3');
+  if (studentRecords.length > 0) return { allRecords: studentRecords, role: 'student' };
 
   throw new Error('Invalid username or password.');
 }
