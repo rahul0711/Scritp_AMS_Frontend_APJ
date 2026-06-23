@@ -50,3 +50,110 @@ export async function login(username: string, password: string): Promise<AuthRes
 
   throw new Error('Invalid username or password.');
 }
+
+export type SemesterOption = {
+  semesterId: number;
+  semesterName: string;
+};
+
+export type SubjectOption = {
+  subjectId: number;
+  subjectName: string;
+};
+
+export async function fetchSemesters(userId: number, courseId: number): Promise<SemesterOption[]> {
+  const { data } = await api.get<SemesterOption[]>('/GetSemester', {
+    params: { UserId: userId, CourseId: courseId },
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+export async function fetchSubjects(userId: number, courseId: number, semesterId: number): Promise<SubjectOption[]> {
+  const { data } = await api.get<SubjectOption[]>('/GetSubject', {
+    params: { UserId: userId, CourseId: courseId, SemesterId: semesterId },
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+
+export type TimeSlotOption = {
+  timeSlotId: number;
+  timeSlotName: string;
+};
+
+export async function fetchTime(): Promise<TimeSlotOption[]> {
+  const { data } = await api.get<TimeSlotOption[]>('/GetTimeSlot');
+  return Array.isArray(data) ? data : [];
+}
+
+
+export type Student = {
+  studentRegistrationId: number;
+  enrollmentNo: string;
+  nameAsPerMarksheet: string;
+};
+
+export type GetStudentsResponse = {
+  success: boolean;
+  message?: string;
+  students?: Student[];
+};
+
+export async function fetchStudents(
+  userId: number,
+  courseId: number,
+  semesterId: number,
+  subjectId: number,
+  timeSlotId: number
+): Promise<GetStudentsResponse> {
+  const { data } = await api.get<GetStudentsResponse>('/GetStudents', {
+    params: {
+      UserId: userId,
+      CourseId: courseId,
+      SemesterId: semesterId,
+      SubjectId: subjectId,
+      TimeSlotId: timeSlotId
+    },
+  });
+  return data;
+}
+
+export async function facultyInAttendance(payload: {
+  userId: number;
+  courseId: number;
+  semesterId: number;
+  subjectId: number;
+  timeSlotId: number;
+  remarks: string;
+ 
+}): Promise<{ success: boolean; message?: string }> {
+  const { data } = await api.post<{ success: boolean; message?: string }>('/FacultyInAttendance', payload);
+  return data;
+}
+
+export type StudentAttendanceInput = {
+  StudentRegistrationId: number;
+  status: 'P' | 'A';
+};
+
+export type SaveAttendancePayload = {
+  userId: number;
+  courseId: number;
+  semesterId: number;
+  subjectId: number;
+  attendanceDate: string;
+  students: StudentAttendanceInput[];
+};
+
+export async function saveAttendance(
+  payload: SaveAttendancePayload
+): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.post<{ success: boolean; message: string }>('/SaveAttendance', payload);
+  return data;
+}
+
+
+
+
+
+
