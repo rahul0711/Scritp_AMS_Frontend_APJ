@@ -1,9 +1,21 @@
-import React from "react";
-import { FlatList, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Check } from "lucide-react-native";
+import { Check, Search, X } from "lucide-react-native";
 import { C } from "./Theme";
 import { OptionType } from "./types";
+
+/** Fixed picker item height for getItemLayout */
+const PICKER_ITEM_HEIGHT = 56;
 
 interface BottomSheetPickerProps {
   visible: boolean;
@@ -22,103 +34,213 @@ export const BottomSheetPicker = React.memo(({
   onSelect,
   onClose,
 }: BottomSheetPickerProps) => {
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) => o.name.toLowerCase().includes(q));
+  }, [options, query]);
+
+  const keyExtractor = useCallback((item: OptionType) => String(item.id), []);
+
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: PICKER_ITEM_HEIGHT,
+      offset: PICKER_ITEM_HEIGHT * index,
+      index,
+    }),
+    []
+  );
+
+  const handleClose = useCallback(() => {
+    setQuery("");
+    onClose();
+  }, [onClose]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: OptionType }) => {
+      const active = selected?.id === item.id;
+      return (
+        <TouchableOpacity
+          onPress={() => {
+            onSelect(item);
+            setQuery("");
+            onClose();
+          }}
+          style={[picker.item, active && picker.itemActive]}
+          activeOpacity={0.72}
+        >
+          <Text style={[picker.itemText, active && picker.itemTextActive]} numberOfLines={2}>
+            {item.name}
+          </Text>
+          {active && <Check size={18} color={C.white} />}
+        </TouchableOpacity>
+      );
+    },
+    [selected, onSelect, onClose]
+  );
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose} />
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <Pressable style={styles.overlay} onPress={handleClose} />
       <View style={styles.sheet}>
-        <View style={styles.sheetHandle} />
+        {/* Handle */}
+        <View style={styles.handle} />
+
+        {/* Title bar */}
         <LinearGradient
           colors={[C.primary, C.primaryMid]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.sheetTitleBar}
+          style={styles.titleBar}
         >
-          <Text style={styles.sheetTitle}>Select {label}</Text>
+          <Text style={styles.title}>Select {label}</Text>
+          <TouchableOpacity onPress={handleClose} style={styles.closeBtn} activeOpacity={0.8}>
+            <X size={18} color={C.white} />
+          </TouchableOpacity>
         </LinearGradient>
+
+        {/* Search bar */}
+        {options.length > 4 && (
+          <View style={styles.searchRow}>
+            <Search size={16} color={C.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={`Search ${label}...`}
+              placeholderTextColor={C.textLight}
+              value={query}
+              onChangeText={setQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
+          </View>
+        )}
+
+        {/* Options list */}
         <FlatList
-          data={options}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.sheetList}
-          renderItem={({ item }) => {
-            const active = selected?.id === item.id;
-            return (
-              <TouchableOpacity
-                onPress={() => {
-                  onSelect(item);
-                  onClose();
-                }}
-                style={[styles.sheetItem, active && styles.sheetItemActive]}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.sheetItemText, active && styles.sheetItemTextActive]}>
-                  {item.name}
-                </Text>
-                {active && <Check size={18} color={C.white} />}
-              </TouchableOpacity>
-            );
-          }}
+          data={filtered}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          getItemLayout={getItemLayout}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>No results for "{query}"</Text>
+            </View>
+          }
         />
       </View>
     </Modal>
   );
 });
 
-const styles = StyleSheet.create({
-  modalOverlay: {
+const picker = StyleSheet.create({
+  item: {
+    height: PICKER_ITEM_HEIGHT,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    marginBottom: 6,
+    backgroundColor: C.bg,
+    borderWidth: 1.5,
+    borderColor: C.border,
+  },
+  itemActive: {
+    backgroundColor: C.primaryMid,
+    borderColor: C.primaryMid,
+  },
+  itemText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: C.text,
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    marginRight: 8,
+  },
+  itemTextActive: {
+    color: C.white,
+    fontWeight: "700",
+  },
+});
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(10,24,50,0.55)",
   },
   sheet: {
     backgroundColor: C.white,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: "70%",
     paddingBottom: 36,
   },
-  sheetHandle: {
-    width: 44,
-    height: 5,
-    borderRadius: 3,
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: C.border,
     alignSelf: "center",
-    marginTop: 14,
+    marginTop: 12,
     marginBottom: 0,
   },
-  sheetTitleBar: {
-    paddingHorizontal: 22,
+  titleBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
     paddingVertical: 16,
-    marginTop: 8,
+    marginTop: 10,
   },
-  sheetTitle: {
+  title: {
     fontSize: 18,
     fontWeight: "800",
     color: C.white,
   },
-  sheetList: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 20,
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  sheetItem: {
+  searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 15,
-    paddingHorizontal: 18,
-    borderRadius: 16,
-    marginBottom: 8,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 4,
     backgroundColor: C.bg,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    paddingHorizontal: 14,
+    gap: 10,
+    height: 46,
   },
-  sheetItemActive: {
-    backgroundColor: C.primaryMid,
-  },
-  sheetItemText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: C.text,
+  searchInput: {
     flex: 1,
+    height: "100%",
+    fontSize: 15,
+    color: C.text,
   },
-  sheetItemTextActive: {
-    color: C.white,
-    fontWeight: "700",
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  empty: {
+    paddingVertical: 28,
+    alignItems: "center",
+  },
+  emptyText: {
+    color: C.textMuted,
+    fontSize: 14,
   },
 });

@@ -1,10 +1,9 @@
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Check, ChevronDown } from "lucide-react-native";
+import { Check, ChevronRight } from "lucide-react-native";
 import { C } from "./Theme";
 
 interface FilterRowProps {
-  step: number;
   label: string;
   value: string | null;
   icon: React.ReactNode;
@@ -14,7 +13,6 @@ interface FilterRowProps {
 }
 
 export const FilterRow = React.memo(({
-  step,
   label,
   value,
   icon,
@@ -26,32 +24,37 @@ export const FilterRow = React.memo(({
     <TouchableOpacity
       onPress={onPress}
       style={[fr.row, selected && fr.rowSelected]}
-      activeOpacity={0.75}
+      activeOpacity={0.72}
     >
-      {/* Step number / check */}
-      <View style={[fr.stepCircle, selected && fr.stepCircleActive]}>
-        {selected ? (
-          <Check size={14} color={C.white} strokeWidth={3} />
-        ) : (
-          <Text style={fr.stepNum}>{step}</Text>
-        )}
-      </View>
-      {/* Icon box */}
+      {/* Left accent bar */}
+      <View style={[fr.accentBar, selected && fr.accentBarActive]} />
+
+      {/* Icon */}
       <View style={[fr.iconBox, selected && fr.iconBoxActive]}>
         {icon}
       </View>
+
       {/* Text */}
       <View style={fr.textCol}>
         <Text style={fr.rowLabel}>{label}</Text>
-        <Text style={[fr.rowValue, !value && fr.rowPlaceholder]} numberOfLines={1}>
-          {value ?? "Tap to choose →"}
+        <Text
+          style={[fr.rowValue, !value && fr.rowPlaceholder]}
+          numberOfLines={1}
+        >
+          {value ?? "Tap to select"}
         </Text>
       </View>
+
+      {/* Right side */}
       {isLoading ? (
-        <ActivityIndicator size="small" color={C.primaryMid} />
+        <ActivityIndicator size="small" color={C.primaryMid} style={fr.trailing} />
+      ) : selected ? (
+        <View style={fr.checkBadge}>
+          <Check size={13} color={C.white} strokeWidth={3} />
+        </View>
       ) : (
-        <View style={[fr.chevronBox, selected && fr.chevronBoxActive]}>
-          <ChevronDown size={16} color={selected ? C.white : C.textMuted} />
+        <View style={fr.chevronBox}>
+          <ChevronRight size={16} color={C.textMuted} />
         </View>
       )}
     </TouchableOpacity>
@@ -62,38 +65,35 @@ const fr = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: C.bg,
+    backgroundColor: C.white,
     borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    minHeight: 64,
     marginBottom: 10,
     borderWidth: 1.5,
     borderColor: C.border,
+    overflow: "hidden",
+    elevation: 1,
+    shadowColor: C.cardShadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
   },
   rowSelected: {
     borderColor: C.primaryMid,
-    backgroundColor: "#EBF2FF",
+    backgroundColor: "#F0F5FF",
   },
-  stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  accentBar: {
+    width: 4,
+    alignSelf: "stretch",
     backgroundColor: C.border,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    marginRight: 14,
   },
-  stepCircleActive: {
+  accentBarActive: {
     backgroundColor: C.success,
   },
-  stepNum: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: C.textMuted,
-  },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     backgroundColor: C.primaryBg,
     alignItems: "center",
@@ -105,14 +105,15 @@ const fr = StyleSheet.create({
   },
   textCol: {
     flex: 1,
+    paddingVertical: 12,
   },
   rowLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "700",
     color: C.textMuted,
     textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 3,
+    letterSpacing: 0.7,
+    marginBottom: 4,
   },
   rowValue: {
     fontSize: 15,
@@ -124,15 +125,25 @@ const fr = StyleSheet.create({
     fontWeight: "500",
     fontSize: 14,
   },
+  trailing: {
+    marginHorizontal: 14,
+  },
+  checkBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: C.success,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
   chevronBox: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: C.border,
+    backgroundColor: C.bg,
     alignItems: "center",
     justifyContent: "center",
-  },
-  chevronBoxActive: {
-    backgroundColor: C.primaryMid,
+    marginRight: 14,
   },
 });

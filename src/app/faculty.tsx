@@ -27,7 +27,6 @@ import {
 } from "@/services/auth";
 import { useAuthStore } from "@/store/authStore";
 
-// Split faculty components
 import { C } from "@/components/faculty/Theme";
 import { OptionType } from "@/components/faculty/types";
 import { FacultyHeader } from "@/components/faculty/FacultyHeader";
@@ -35,6 +34,9 @@ import { SessionSetup } from "@/components/faculty/SessionSetup";
 import { SessionSummary } from "@/components/faculty/SessionSummary";
 import { StudentRoster } from "@/components/faculty/StudentRoster";
 import { BottomSheetPicker } from "@/components/faculty/BottomSheetPicker";
+import { BottomNav, FacultyTab } from "@/components/faculty/BottomNav";
+import { ReportsScreen } from "@/components/faculty/ReportsScreen";
+import { ProfileScreen } from "@/components/faculty/ProfileScreen";
 
 if (
   Platform.OS === "android" &&
@@ -43,6 +45,14 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+type LoadingKey = "time" | "semesters" | "subjects" | "students";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
 export default function FacultyDashboard() {
   const router = useRouter();
   const allRecords = useAuthStore((s) => s.allRecords);
@@ -51,34 +61,43 @@ export default function FacultyDashboard() {
   const facultyName = allRecords[0]?.facultyName ?? "Faculty";
   const userId = allRecords[0]?.userId;
 
-  const courseOptions = useMemo(() => {
+  // ── Course options (derived from auth store, never changes) ──────────────
+  const courseOptions = useMemo<OptionType[]>(() => {
     const seen = new Set<number>();
-    const options: OptionType[] = [];
-    allRecords.forEach((r) => {
+    return allRecords.reduce<OptionType[]>((acc, r) => {
       if (r.courseId && r.courseName && !seen.has(r.courseId)) {
         seen.add(r.courseId);
-        options.push({ id: r.courseId, name: r.courseName });
+        acc.push({ id: r.courseId, name: r.courseName });
       }
-    });
-    return options;
+      return acc;
+    }, []);
   }, [allRecords]);
 
+  // ── Selections ────────────────────────────────────────────────────────────
   const [selectedCourse, setSelectedCourse] = useState<OptionType | null>(null);
   const [selectedSemester, setSelectedSemester] = useState<OptionType | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<OptionType | null>(null);
   const [selectedTime, setSelectedTime] = useState<OptionType | null>(null);
 
+  // ── Option lists ──────────────────────────────────────────────────────────
   const [semesterOptions, setSemesterOptions] = useState<OptionType[]>([]);
   const [subjectOptions, setSubjectOptions] = useState<OptionType[]>([]);
   const [timeOptions, setTimeOptions] = useState<OptionType[]>([]);
 
+  // ── In-memory caches (survive re-renders, cleared on logout) ─────────────
+  /** Map courseId → semester options */
+  const semesterCache = useRef<Map<number, OptionType[]>>(new Map());
+  /** Map `${courseId}:${semesterId}` → subject options */
+  const subjectCache = useRef<Map<string, OptionType[]>>(new Map());
+
+  // ── Student roster ───────────────────────────────────────────────────────
   const [students, setStudents] = useState<Student[]>([]);
   const [checkedStudents, setCheckedStudents] = useState<Record<number, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [studentsMessage, setStudentsMessage] = useState<string | null>(null);
 
-  // Grouped loading object
-  const [loading, setLoading] = useState({
+  // ── Loading states (grouped) ─────────────────────────────────────────────
+  const [loading, setLoading] = useState<Record<LoadingKey, boolean>>({
     time: false,
     semesters: false,
     subjects: false,
@@ -86,17 +105,19 @@ export default function FacultyDashboard() {
   });
 
   const setLoad = useCallback(
-    (key: keyof typeof loading, val: boolean) =>
+    (key: LoadingKey, val: boolean) =>
       setLoading((prev) => (prev[key] === val ? prev : { ...prev, [key]: val })),
     []
   );
 
+  // ── Submission / saving ───────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [savingAttendance, setSavingAttendance] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
 
-  // Picker state
+  // ── Active bottom-nav tab ─────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<FacultyTab>("dashboard");
+
+  // ── Picker state ──────────────────────────────────────────────────────────
   const [picker, setPicker] = useState<{
     visible: boolean;
     label: string;
@@ -120,53 +141,85 @@ export default function FacultyDashboard() {
     setPicker({ visible: true, label, options, selected: current, onSelect });
   }, []);
 
-  const closePicker = useCallback(() =>
-    setPicker((p) => ({ ...p, visible: false })), []);
+  const closePicker = useCallback(
+    () => setPicker((p) => ({ ...p, visible: false })),
+    []
+  );
 
-  // Smooth layout animation when critical filter or roster states change
-  useEffect(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  }, [
-    showFilters,
-    selectedCourse,
-    selectedSemester,
-    selectedSubject,
-    selectedTime,
-    loading.students,
-    students.length,
-    studentsMessage,
-  ]);
+  // ── Toggle filter panel (instant, 200ms animation) ────────────────────────
+  // No longer needed — SessionSetup is always visible
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Derived / Memoized values
+  // ─────────────────────────────────────────────────────────────────────────
+  const allFiltersSet = useMemo(
+    () => !!(selectedCourse && selectedSemester && selectedSubject && selectedTime),
+    [selectedCourse, selectedSemester, selectedSubject, selectedTime]
+  );
 
   const filteredStudents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return students;
     return students.filter(
       (s) =>
-        (s.nameAsPerMarksheet?.toLowerCase().includes(q)) ||
-        (s.enrollmentNo?.toLowerCase().includes(q))
+        s.nameAsPerMarksheet?.toLowerCase().includes(q) ||
+        s.enrollmentNo?.toLowerCase().includes(q)
     );
   }, [students, searchQuery]);
 
-  // Fetch time slots once on mount
+  const presentCount = useMemo(
+    () => Object.values(checkedStudents).filter(Boolean).length,
+    [checkedStudents]
+  );
+  const absentCount = useMemo(
+    () => students.length - presentCount,
+    [students.length, presentCount]
+  );
+
+  const allChecked = useMemo(
+    () => filteredStudents.length > 0 && filteredStudents.every((s) => checkedStudents[s.studentRegistrationId]),
+    [filteredStudents, checkedStudents]
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Effects — Data fetching with caching
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Fetch time slots once (cached implicitly by component lifetime)
   useEffect(() => {
+    if (timeOptions.length > 0) return; // already loaded
     setLoad("time", true);
     fetchTime()
       .then((data) => setTimeOptions(data.map((t) => ({ id: t.timeSlotId, name: t.timeSlotName }))))
       .catch((err) => console.error("Error fetching time slots:", err))
       .finally(() => setLoad("time", false));
-  }, [setLoad]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch semesters when course changes
+  // Fetch semesters when course changes — with cache
   useEffect(() => {
-    if (!selectedCourse) { setSemesterOptions([]); setSelectedSemester(null); return; }
+    if (!selectedCourse) {
+      setSemesterOptions([]);
+      setSelectedSemester(null);
+      return;
+    }
     if (!userId) return;
+
+    const cached = semesterCache.current.get(selectedCourse.id);
+    if (cached) {
+      setSemesterOptions(cached);
+      if (cached.length === 1) setSelectedSemester(cached[0]);
+      return;
+    }
+
     setLoad("semesters", true);
     setSemesterOptions([]);
     setSelectedSemester(null);
     setSelectedSubject(null);
+
     fetchSemesters(userId, selectedCourse.id)
       .then((data) => {
         const mapped = data.map((s) => ({ id: s.semesterId, name: s.semesterName }));
+        semesterCache.current.set(selectedCourse.id, mapped);
         setSemesterOptions(mapped);
         if (mapped.length === 1) setSelectedSemester(mapped[0]);
       })
@@ -174,16 +227,31 @@ export default function FacultyDashboard() {
       .finally(() => setLoad("semesters", false));
   }, [selectedCourse, userId, setLoad]);
 
-  // Fetch subjects when semester changes
+  // Fetch subjects when semester changes — with cache
   useEffect(() => {
-    if (!selectedSemester || !selectedCourse) { setSubjectOptions([]); setSelectedSubject(null); return; }
+    if (!selectedSemester || !selectedCourse) {
+      setSubjectOptions([]);
+      setSelectedSubject(null);
+      return;
+    }
     if (!userId) return;
+
+    const cacheKey = `${selectedCourse.id}:${selectedSemester.id}`;
+    const cached = subjectCache.current.get(cacheKey);
+    if (cached) {
+      setSubjectOptions(cached);
+      if (cached.length === 1) setSelectedSubject(cached[0]);
+      return;
+    }
+
     setLoad("subjects", true);
     setSubjectOptions([]);
     setSelectedSubject(null);
+
     fetchSubjects(userId, selectedCourse.id, selectedSemester.id)
       .then((data) => {
         const mapped = data.map((s) => ({ id: s.subjectId, name: s.subjectName }));
+        subjectCache.current.set(cacheKey, mapped);
         setSubjectOptions(mapped);
         if (mapped.length === 1) setSelectedSubject(mapped[0]);
       })
@@ -191,13 +259,12 @@ export default function FacultyDashboard() {
       .finally(() => setLoad("subjects", false));
   }, [selectedSemester, selectedCourse, userId, setLoad]);
 
-  // Fetch students — reset + fetch in ONE effect
+  // Fetch students — abort on unmount/deps change
   const fetchAbortRef = useRef(false);
 
   useEffect(() => {
     setStudents([]);
     setCheckedStudents({});
-    setIsSubmitted(false);
     setSearchQuery("");
     setStudentsMessage(null);
 
@@ -220,7 +287,9 @@ export default function FacultyDashboard() {
       })
       .catch((err) => {
         if (fetchAbortRef.current) return;
-        setStudentsMessage(err?.response?.data?.message || err?.message || "Failed to fetch students.");
+        setStudentsMessage(
+          err?.response?.data?.message || err?.message || "Failed to fetch students."
+        );
       })
       .finally(() => {
         if (!fetchAbortRef.current) setLoad("students", false);
@@ -229,50 +298,70 @@ export default function FacultyDashboard() {
     return () => { fetchAbortRef.current = true; };
   }, [selectedCourse, selectedSemester, selectedSubject, selectedTime, userId]);
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Handlers
+  // ─────────────────────────────────────────────────────────────────────────
+
   const handleSubmit = useCallback(async () => {
     if (!selectedCourse || !selectedSemester || !selectedSubject || !selectedTime || !userId) {
-      Alert.alert("Error", "Please select all 4 filters first."); return;
+      Alert.alert("Error", "Please select all 4 filters first.");
+      return;
     }
     setSubmitting(true);
     try {
       const result = await facultyInAttendance({
-        userId, courseId: selectedCourse.id, semesterId: selectedSemester.id,
-        subjectId: selectedSubject.id, timeSlotId: selectedTime.id, remarks: "Lecture Started",
+        userId,
+        courseId: selectedCourse.id,
+        semesterId: selectedSemester.id,
+        subjectId: selectedSubject.id,
+        timeSlotId: selectedTime.id,
+        remarks: "Lecture Started",
       });
       Alert.alert("Success", result.message || "Attendance started successfully!");
-      setIsSubmitted(true);
-      setLoad("students", true); setStudents([]); setStudentsMessage(null);
-      const res = await fetchStudents(userId, selectedCourse.id, selectedSemester.id, selectedSubject.id, selectedTime.id);
+      setLoad("students", true);
+      setStudents([]);
+      setStudentsMessage(null);
+      const res = await fetchStudents(
+        userId, selectedCourse.id, selectedSemester.id, selectedSubject.id, selectedTime.id
+      );
       if (res.success && Array.isArray(res.students)) {
         setStudents(res.students);
         const init: Record<number, boolean> = {};
         res.students.forEach((s) => { init[s.studentRegistrationId] = true; });
         setCheckedStudents(init);
       } else {
-        setStudentsMessage(res.message || "No students found."); setIsSubmitted(false);
+        setStudentsMessage(res.message || "No students found.");
       }
     } catch (err: any) {
       Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to submit attendance.");
     } finally {
-      setSubmitting(false); setLoad("students", false);
+      setSubmitting(false);
+      setLoad("students", false);
     }
   }, [selectedCourse, selectedSemester, selectedSubject, selectedTime, userId, setLoad]);
 
   const handleSaveAttendance = useCallback(async () => {
     if (!selectedCourse || !selectedSemester || !selectedSubject || !selectedTime || !userId) {
-      Alert.alert("Error", "Missing required filters."); return;
+      Alert.alert("Error", "Missing required filters.");
+      return;
     }
     setSavingAttendance(true);
     try {
       const res = await saveAttendance({
-        userId, courseId: selectedCourse.id, semesterId: selectedSemester.id,
-        subjectId: selectedSubject.id, attendanceDate: new Date().toISOString().split("T")[0],
+        userId,
+        courseId: selectedCourse.id,
+        semesterId: selectedSemester.id,
+        subjectId: selectedSubject.id,
+        attendanceDate: new Date().toISOString().split("T")[0],
         students: students.map((s) => ({
           StudentRegistrationId: s.studentRegistrationId,
           status: checkedStudents[s.studentRegistrationId] ? ("P" as const) : ("A" as const),
         })),
       });
-      Alert.alert(res.success ? "Success" : "Error", res.message || (res.success ? "Saved!" : "Failed."));
+      Alert.alert(
+        res.success ? "Success ✓" : "Error",
+        res.message || (res.success ? "Attendance saved!" : "Failed to save.")
+      );
     } catch (err: any) {
       Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to save attendance.");
     } finally {
@@ -283,38 +372,109 @@ export default function FacultyDashboard() {
   const handleLogout = useCallback(() => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Logout", style: "destructive", onPress: () => { logout(); router.replace("/login" as any); } },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: () => {
+          // Clear caches on logout
+          semesterCache.current.clear();
+          subjectCache.current.clear();
+          logout();
+          router.replace("/login" as any);
+        },
+      },
     ]);
   }, [logout, router]);
 
-  const allFiltersSet = !!(selectedCourse && selectedSemester && selectedSubject && selectedTime);
-  const presentCount = useMemo(() => Object.values(checkedStudents).filter(Boolean).length, [checkedStudents]);
-  const absentCount = students.length - presentCount;
-
-  // Memoized toggle-all handler
   const handleToggleAll = useCallback(() => {
-    const allChecked = filteredStudents.every((s) => checkedStudents[s.studentRegistrationId]);
+    const allCheckedNow = filteredStudents.every((s) => checkedStudents[s.studentRegistrationId]);
     const next = { ...checkedStudents };
-    filteredStudents.forEach((s) => { next[s.studentRegistrationId] = !allChecked; });
+    filteredStudents.forEach((s) => { next[s.studentRegistrationId] = !allCheckedNow; });
     setCheckedStudents(next);
   }, [filteredStudents, checkedStudents]);
 
-  // Memoized per-student toggle
   const handleToggleStudent = useCallback((id: number, current: boolean) => {
     setCheckedStudents((prev) => ({ ...prev, [id]: !current }));
   }, []);
 
-  const allChecked = useMemo(() => {
-    if (filteredStudents.length === 0) return false;
-    return filteredStudents.every((s) => checkedStudents[s.studentRegistrationId]);
-  }, [filteredStudents, checkedStudents]);
+  // ── Picker openers (stable references via useCallback) ───────────────────
+  const openCoursePicker = useCallback(() => {
+    openPicker("Course", courseOptions, selectedCourse, setSelectedCourse);
+  }, [courseOptions, selectedCourse, openPicker]);
 
+  const openSemesterPicker = useCallback(() => {
+    if (!selectedCourse) { Alert.alert("Info", "Please select a Course first."); return; }
+    openPicker("Semester", semesterOptions, selectedSemester, setSelectedSemester);
+  }, [selectedCourse, semesterOptions, selectedSemester, openPicker]);
+
+  const openSubjectPicker = useCallback(() => {
+    if (!selectedSemester) { Alert.alert("Info", "Please select a Semester first."); return; }
+    openPicker("Subject", subjectOptions, selectedSubject, setSelectedSubject);
+  }, [selectedSemester, subjectOptions, selectedSubject, openPicker]);
+
+  const openTimePicker = useCallback(() => {
+    openPicker("Time Slot", timeOptions, selectedTime, setSelectedTime);
+  }, [timeOptions, selectedTime, openPicker]);
+
+  const handleResetFilters = useCallback(() => {
+    LayoutAnimation.configureNext({
+      duration: 200,
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    });
+    setSelectedCourse(null);
+    setSelectedSemester(null);
+    setSelectedSubject(null);
+    setSelectedTime(null);
+  }, []);
+
+  // ── Shared SessionSetup props ────────────────────────────────────────────
+  const sessionSetupProps = useMemo(() => ({
+    selectedCourse,
+    selectedSemester,
+    selectedSubject,
+    selectedTime,
+    loadingSemesters: loading.semesters,
+    loadingSubjects: loading.subjects,
+    loadingTime: loading.time,
+    onPressCourse: openCoursePicker,
+    onPressSemester: openSemesterPicker,
+    onPressSubject: openSubjectPicker,
+    onPressTime: openTimePicker,
+    onResetFilters: handleResetFilters,
+    allFiltersSet,
+    studentsMessage,
+    submitting,
+    onSubmit: handleSubmit,
+  }), [
+    selectedCourse, selectedSemester, selectedSubject, selectedTime,
+    loading.semesters, loading.subjects, loading.time,
+    openCoursePicker, openSemesterPicker, openSubjectPicker, openTimePicker,
+    handleResetFilters, allFiltersSet, studentsMessage, submitting, handleSubmit,
+  ]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={s.root}>
-      {/* ── Header ── */}
-      <FacultyHeader facultyName={facultyName} onLogout={handleLogout} />
+      {/* ── Header (shown only on Dashboard tab) ── */}
+      {activeTab === "dashboard" && (
+        <FacultyHeader facultyName={facultyName} onLogout={handleLogout} />
+      )}
 
-      {students.length > 0 ? (
+      {/* ── Tab Content ── */}
+      {activeTab === "reports" && (
+        <ReportsScreen facultyName={facultyName} />
+      )}
+
+      {activeTab === "profile" && (
+        <ProfileScreen record={allRecords[0]} onLogout={handleLogout} />
+      )}
+
+      {activeTab === "dashboard" && (students.length > 0 ? (
+        // ── Student Roster view ──
         <StudentRoster
           students={students}
           filteredStudents={filteredStudents}
@@ -326,45 +486,7 @@ export default function FacultyDashboard() {
           onToggleAll={handleToggleAll}
           onToggleStudent={handleToggleStudent}
           allChecked={allChecked}
-          ListHeaderComponent={
-            <SessionSetup
-              showFilters={showFilters}
-              onToggleFilters={() => setShowFilters((p) => !p)}
-              selectedCourse={selectedCourse}
-              selectedSemester={selectedSemester}
-              selectedSubject={selectedSubject}
-              selectedTime={selectedTime}
-              loadingSemesters={loading.semesters}
-              loadingSubjects={loading.subjects}
-              loadingTime={loading.time}
-              onPressCourse={() => openPicker("Course", courseOptions, selectedCourse, setSelectedCourse)}
-              onPressSemester={() => {
-                if (!selectedCourse) {
-                  Alert.alert("Info", "Please select a Course first.");
-                  return;
-                }
-                openPicker("Semester", semesterOptions, selectedSemester, setSelectedSemester);
-              }}
-              onPressSubject={() => {
-                if (!selectedSemester) {
-                  Alert.alert("Info", "Please select a Semester first.");
-                  return;
-                }
-                openPicker("Subject", subjectOptions, selectedSubject, setSelectedSubject);
-              }}
-              onPressTime={() => openPicker("Time Slot", timeOptions, selectedTime, setSelectedTime)}
-              onResetFilters={() => {
-                setSelectedCourse(null);
-                setSelectedSemester(null);
-                setSelectedSubject(null);
-                setSelectedTime(null);
-              }}
-              allFiltersSet={allFiltersSet}
-              studentsMessage={studentsMessage}
-              submitting={submitting}
-              onSubmit={handleSubmit}
-            />
-          }
+          ListHeaderComponent={<SessionSetup {...sessionSetupProps} />}
           ListHeaderComponent2={
             <SessionSummary
               selectedCourse={selectedCourse}
@@ -375,47 +497,15 @@ export default function FacultyDashboard() {
           }
         />
       ) : (
-        <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* ── Session Setup ── */}
-          <SessionSetup
-            showFilters={showFilters}
-            onToggleFilters={() => setShowFilters((p) => !p)}
-            selectedCourse={selectedCourse}
-            selectedSemester={selectedSemester}
-            selectedSubject={selectedSubject}
-            selectedTime={selectedTime}
-            loadingSemesters={loading.semesters}
-            loadingSubjects={loading.subjects}
-            loadingTime={loading.time}
-            onPressCourse={() => openPicker("Course", courseOptions, selectedCourse, setSelectedCourse)}
-            onPressSemester={() => {
-              if (!selectedCourse) {
-                Alert.alert("Info", "Please select a Course first.");
-                return;
-              }
-              openPicker("Semester", semesterOptions, selectedSemester, setSelectedSemester);
-            }}
-            onPressSubject={() => {
-              if (!selectedSemester) {
-                Alert.alert("Info", "Please select a Semester first.");
-                return;
-              }
-              openPicker("Subject", subjectOptions, selectedSubject, setSelectedSubject);
-            }}
-            onPressTime={() => openPicker("Time Slot", timeOptions, selectedTime, setSelectedTime)}
-            onResetFilters={() => {
-              setSelectedCourse(null);
-              setSelectedSemester(null);
-              setSelectedSubject(null);
-              setSelectedTime(null);
-            }}
-            allFiltersSet={allFiltersSet}
-            studentsMessage={studentsMessage}
-            submitting={submitting}
-            onSubmit={handleSubmit}
-          />
+        // ── Setup view ──
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={s.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <SessionSetup {...sessionSetupProps} />
 
-          {/* ── Active Selection Summary ── */}
           <SessionSummary
             selectedCourse={selectedCourse}
             selectedSemester={selectedSemester}
@@ -423,7 +513,7 @@ export default function FacultyDashboard() {
             selectedTime={selectedTime}
           />
 
-          {/* ── Student Section ── */}
+          {/* Student loading / message states */}
           {loading.students ? (
             <View style={s.loadingCard}>
               <ActivityIndicator size="large" color={C.primary} />
@@ -437,20 +527,39 @@ export default function FacultyDashboard() {
             </View>
           ) : null}
         </ScrollView>
-      )}
+      ))}
 
-      {/* ── Sticky Save Button ── */}
-      {students.length > 0 && (
+      {/* ── Sticky Save Attendance Bar (Dashboard only) ── */}
+      {activeTab === "dashboard" && students.length > 0 && (
         <View style={s.stickyBottom}>
-          <TouchableOpacity onPress={handleSaveAttendance} disabled={savingAttendance} activeOpacity={0.85} style={s.saveBtn}>
-            <LinearGradient colors={[C.success, "#047857"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.saveGrad}>
-              {savingAttendance
-                ? <ActivityIndicator size="small" color={C.white} />
-                : <>
+          <View style={s.saveSummary}>
+            <Text style={s.saveSummaryText}>
+              <Text style={s.saveP}>{presentCount}P</Text>
+              {"  "}
+              <Text style={s.saveA}>{absentCount}A</Text>
+              {"  "}of {students.length} students
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleSaveAttendance}
+            disabled={savingAttendance}
+            activeOpacity={0.85}
+            style={s.saveBtn}
+          >
+            <LinearGradient
+              colors={[C.success, C.successDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.saveGrad}
+            >
+              {savingAttendance ? (
+                <ActivityIndicator size="small" color={C.white} />
+              ) : (
+                <>
                   <Check size={20} color={C.white} strokeWidth={2.5} />
                   <Text style={s.saveText}>Save Attendance</Text>
                 </>
-              }
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -465,21 +574,114 @@ export default function FacultyDashboard() {
         onSelect={picker.onSelect ?? (() => {})}
         onClose={closePicker}
       />
+
+      {/* ── Bottom Navigation ── */}
+      <BottomNav activeTab={activeTab} onTabPress={setActiveTab} />
     </SafeAreaView>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 36 },
-  loadingCard: { backgroundColor: C.white, borderRadius: 20, padding: 36, alignItems: "center", marginBottom: 14, borderWidth: 1, borderColor: C.border },
-  loadingText: { color: C.textMuted, fontSize: 14, marginTop: 12 },
-  warnCard: { backgroundColor: C.warnBg, borderRadius: 18, padding: 24, alignItems: "center", borderWidth: 1.5, borderColor: C.warnBorder, marginBottom: 14, gap: 8 },
-  warnTitle: { fontSize: 16, fontWeight: "800", color: C.warn },
-  warnText: { color: "#92400E", fontSize: 14, fontWeight: "500", textAlign: "center", lineHeight: 22 },
-  stickyBottom: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: C.white, borderTopWidth: 1, borderTopColor: C.border },
-  saveBtn: { borderRadius: 18, overflow: "hidden" },
-  saveGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 17, gap: 10 },
-  saveText: { color: C.white, fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 36,
+  },
+
+  // Loading / warning cards
+  loadingCard: {
+    backgroundColor: C.white,
+    borderRadius: 20,
+    padding: 36,
+    alignItems: "center",
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    elevation: 2,
+    shadowColor: C.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  loadingText: {
+    color: C.textMuted,
+    fontSize: 14,
+    marginTop: 12,
+    fontWeight: "500",
+  },
+  warnCard: {
+    backgroundColor: C.warnBg,
+    borderRadius: 18,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: C.warnBorder,
+    marginBottom: 14,
+    gap: 8,
+    elevation: 2,
+    shadowColor: "#D97706",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  warnTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: C.warn,
+  },
+  warnText: {
+    color: "#92400E",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+
+  // Sticky save bar
+  stickyBottom: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: C.white,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    gap: 8,
+  },
+  saveSummary: {
+    alignItems: "center",
+  },
+  saveSummaryText: {
+    fontSize: 13,
+    color: C.textMuted,
+    fontWeight: "600",
+  },
+  saveP: {
+    color: C.success,
+    fontWeight: "800",
+  },
+  saveA: {
+    color: C.danger,
+    fontWeight: "800",
+  },
+  saveBtn: {
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  saveGrad: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 17,
+    gap: 10,
+  },
+  saveText: {
+    color: C.white,
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
 });

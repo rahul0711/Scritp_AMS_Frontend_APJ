@@ -47,158 +47,151 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient
-      colors={["#0A42BA", "#002570"]}
+      colors={["#1A4FC4", "#0A2E8A", "#061E6E"]}
       start={{ x: 0, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
+      end={{ x: 0.3, y: 1 }}
       style={styles.gradientBg}
     >
+      {/* Decorative circles */}
+      <View style={styles.circleLarge} />
+      <View style={styles.circleMedium} />
+      <View style={styles.circleBottomRight} />
+
+      {/* Dot grid top-right */}
+      <View style={styles.dotGrid}>
+        {[...Array(5)].map((_, r) => (
+          <View key={r} style={{ flexDirection: "row", gap: 7, marginBottom: 7 }}>
+            {[...Array(5)].map((_, c) => (
+              <View
+                key={c}
+                style={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: "rgba(255,255,255,0.25)",
+                }}
+              />
+            ))}
+          </View>
+        ))}
+      </View>
+
       <KeyboardAvoidingView
         style={styles.root}
-        behavior="padding"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
-        {/* Abstract Background Elements */}
-        <View style={styles.circleOverlay} />
-        <View style={styles.circleOverlay2} />
-        <View style={styles.dotGrid}>
-          {[...Array(6)].map((_, r) => (
-            <View key={r} style={{ flexDirection: "row", gap: 6 }}>
-              {[...Array(6)].map((_, c) => (
-                <View
-                  key={c}
-                  style={{
-                    width: 4,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: "rgba(255,255,255,0.18)",
-                  }}
-                />
-              ))}
-            </View>
-          ))}
-        </View>
-
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.cardContainer}>
-            {/* ── Login Card ── */}
-            <View style={styles.card}>
-              {/* Logo SCRIPT INDIA */}
-              <View style={styles.logoContainer}>
-                <Text style={styles.logoScript}>SCRIPT</Text>
-                <View style={styles.logoIndiaBox}>
-                  <Text style={styles.logoIndia}>INDIA</Text>
-                </View>
-              </View>
+          {/* ── Header Logo (above card) ── */}
+          <View style={styles.headerLogo}>
+            <Text style={styles.logoScript}>SCRIPT</Text>
+            <View style={styles.logoIndiaBox}>
+              <Text style={styles.logoIndia}>INDIA</Text>
+            </View>
+          </View>
 
-              {/* Divider with Graduation Cap */}
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <View style={styles.capCircle}>
-                  <GraduationCap size={20} color="#0D4EBA" />
-                </View>
-                <View style={styles.dividerLine} />
-              </View>
+          {/* ── Login Card ── */}
+          <View style={styles.card}>
+            {/* Graduation Cap Icon */}
+            <View style={styles.capCircle}>
+              <GraduationCap size={28} color="#1A4FC4" />
+            </View>
 
-              {/* Attendance System Info */}
-              <Text style={styles.title}>Student Attendance System</Text>
-              <Text style={styles.subtitle}>
-                Mark Attendance. Track Progress. Build Future.
-              </Text>
+            {/* Title & Subtitle */}
+            <Text style={styles.title}>Student Attendance System</Text>
+            <Text style={styles.subtitle}>
+              Mark Attendance. Track Progress. Build Future.
+            </Text>
 
-              {/* Username Input */}
-              <View style={styles.inputContainer}>
-                <User size={20} color="#5A6B8F" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Username"
-                  placeholderTextColor="#A0AEC0"
-                  value={username}
-                  onChangeText={(t) => {
-                    setUsername(t);
-                    setError("");
-                  }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  onSubmitEditing={() => passwordRef.current?.focus()}
-                  blurOnSubmit={false}
-                />
-              </View>
+            {/* Username Input */}
+            <View style={styles.inputContainer}>
+              <User size={18} color="#8A9BB8" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Username"
+                placeholderTextColor="#B0BDD0"
+                value={username}
+                onChangeText={(t) => {
+                  setUsername(t);
+                  setError("");
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                blurOnSubmit={false}
+              />
+            </View>
 
-              {/* Password Input */}
-              <View style={styles.inputContainer}>
-                <Lock size={20} color="#5A6B8F" style={styles.inputIcon} />
-                <TextInput
-                  ref={passwordRef}
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor="#A0AEC0"
-                  value={password}
-                  onChangeText={(t) => {
-                    setPassword(t);
-                    setError("");
-                  }}
-                  secureTextEntry={!showPassword}
-                  returnKeyType="done"
-                  onSubmitEditing={handleLogin}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeButton}
-                  activeOpacity={0.7}
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} color="#5A6B8F" />
-                  ) : (
-                    <Eye size={20} color="#5A6B8F" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* Error Message */}
-              {error ? (
-                <View style={styles.errorBox}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : null}
-
-              {/* Login Button */}
+            {/* Password Input */}
+            <View style={styles.inputContainer}>
+              <Lock size={18} color="#8A9BB8" style={styles.inputIcon} />
+              <TextInput
+                ref={passwordRef}
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#B0BDD0"
+                value={password}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  setError("");
+                }}
+                secureTextEntry={!showPassword}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
+              />
               <TouchableOpacity
-                style={styles.loginBtn}
-                onPress={handleLogin}
-                disabled={loading}
-                activeOpacity={0.85}
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+                activeOpacity={0.7}
               >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                {showPassword ? (
+                  <EyeOff size={18} color="#8A9BB8" />
                 ) : (
-                  <Text style={styles.loginText}>Login</Text>
+                  <Eye size={18} color="#B0BDD0" />
                 )}
               </TouchableOpacity>
-
-              {/* Forgot Password Link */}
-              <TouchableOpacity activeOpacity={0.7}>
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-              </TouchableOpacity>
             </View>
+
+            {/* Error Message */}
+            {error ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Login Button */}
+            <TouchableOpacity
+              style={styles.loginBtn}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.loginText}>Login</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Forgot Password */}
+            <TouchableOpacity activeOpacity={0.7} style={styles.forgotContainer}>
+              <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
           </View>
 
           {/* ── Footer ── */}
           <View style={styles.footerContainer}>
             <Text style={styles.footerText}>Developed and Designed by</Text>
             <View style={styles.footerLogoRow}>
-              <View style={styles.footerLine} />
-              <View style={styles.footerLogoContainer}>
-                <Text style={styles.logoScriptSmall}>SCRIPT</Text>
-                <View style={styles.logoIndiaBoxSmall}>
-                  <Text style={styles.logoIndiaSmall}>INDIA</Text>
-                </View>
+              <Text style={styles.logoScriptSmall}>SCRIPT</Text>
+              <View style={styles.logoIndiaBoxSmall}>
+                <Text style={styles.logoIndiaSmall}>INDIA</Text>
               </View>
-              <View style={styles.footerLine} />
             </View>
             <Text style={styles.footerSubtitle}>
               Empowering Education with Technology
@@ -219,216 +212,239 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 24,
-    paddingHorizontal: 20,
+    paddingVertical: 60,
+    paddingHorizontal: 24,
   },
-  cardContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
-  },
-  // Background decorative elements
-  circleOverlay: {
+
+  // ── Decorative Background ──
+  circleLarge: {
     position: "absolute",
-    top: -100,
-    left: -100,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    borderWidth: 40,
-    borderColor: "rgba(255, 255, 255, 0.02)",
+    top: -120,
+    left: -120,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
-  circleOverlay2: {
+  circleMedium: {
     position: "absolute",
-    top: -50,
-    left: -50,
+    top: -60,
+    left: -60,
     width: 200,
     height: 200,
     borderRadius: 100,
-    borderWidth: 20,
-    borderColor: "rgba(255, 255, 255, 0.02)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  circleBottomRight: {
+    position: "absolute",
+    bottom: -80,
+    right: -80,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
   dotGrid: {
     position: "absolute",
-    top: 50,
-    right: 30,
-    gap: 6,
+    top: 48,
+    right: 24,
   },
-  // White card
-  card: {
-    width: "100%",
-    maxWidth: 360,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 36,
-    paddingHorizontal: 24,
-    paddingVertical: 36,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-  },
-  // Logo SCRIPT INDIA
-  logoContainer: {
+
+  // ── Header Logo (above card) ──
+  headerLogo: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 32,
+    backgroundColor: "#ffffff",
+    padding: 10,
+    // borderRadius: 10,
   },
   logoScript: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: "800",
-    color: "#1E293B",
+    color: "#000000",
     letterSpacing: 8,
     textAlign: "center",
     textTransform: "uppercase",
   },
   logoIndiaBox: {
-    backgroundColor: "#0D4EBA",
-    width: 180,
-    paddingVertical: 6,
+    backgroundColor: "#1A4FC4",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingVertical: 5,
     borderRadius: 4,
     marginTop: 6,
     alignItems: "center",
     justifyContent: "center",
+    minWidth: 130,
   },
   logoIndia: {
-    color: "#FFFFFF",
-    fontSize: 20,
+    color: "#fff",
+    fontSize: 18,
     fontWeight: "800",
-    letterSpacing: 9,
-    paddingLeft: 9, // offsets trailing letterSpacing for perfect centering
+    letterSpacing: 8,
+    paddingLeft: 8,
     textAlign: "center",
     textTransform: "uppercase",
   },
-  // Divider cap row
-  dividerRow: {
-    flexDirection: "row",
+
+  // ── White Card ──
+  card: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 28,
+    alignItems: "center",
+    elevation: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+  },
+
+  // Graduation cap circle
+  capCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#EBF1FD",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
-    gap: 10,
   },
-  dividerLine: {
-    height: 1,
-    backgroundColor: "#E2E8F0",
-    flex: 1,
-  },
-  capCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#EBF3FF",
-    borderWidth: 1.5,
-    borderColor: "#D6E4FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+
   // Info text
   title: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#0D4EBA",
+    color: "#1A3C8C",
     textAlign: "center",
+    marginBottom: 6,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: "#64748B",
     textAlign: "center",
-    marginTop: 4,
     marginBottom: 24,
+    lineHeight: 18,
   },
+
   // Form fields
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    borderRadius: 16,
-    height: 54,
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 16,
+    borderColor: "#DDE4F0",
+    borderRadius: 14,
+    height: 52,
+    backgroundColor: "#F8FAFF",
+    paddingHorizontal: 14,
     marginBottom: 14,
+    width: "100%",
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
     height: "100%",
-    fontSize: 15,
+    fontSize: 14.5,
     color: "#0F172A",
   },
   eyeButton: {
     padding: 4,
   },
+
+  // Error
+  errorBox: {
+    backgroundColor: "#FFF1F2",
+    borderWidth: 1,
+    borderColor: "#FECDD3",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+    width: "100%",
+  },
+  errorText: {
+    color: "#DC2626",
+    fontSize: 12.5,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
   // Login button
   loginBtn: {
-    backgroundColor: "#0D4EBA",
-    borderRadius: 16,
+    backgroundColor: "#1A4FC4",
+    borderRadius: 14,
     height: 52,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
-    marginBottom: 16,
+    width: "100%",
+    marginTop: 4,
+    marginBottom: 14,
+    elevation: 4,
+    shadowColor: "#1A4FC4",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
   },
   loginText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+
+  // Forgot password
+  forgotContainer: {
+    paddingVertical: 4,
   },
   forgotText: {
-    color: "#0D4EBA",
+    color: "#1A4FC4",
     fontSize: 14,
     fontWeight: "700",
     textAlign: "center",
   },
-  // Footer
+
+  // ── Footer ──
   footerContainer: {
     marginTop: 40,
     alignItems: "center",
   },
   footerText: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 12,
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 11.5,
     fontWeight: "500",
     marginBottom: 8,
   },
   footerLogoRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    width: "80%",
-    gap: 12,
-  },
-  footerLine: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    flex: 1,
-  },
-  footerLogoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 8,
+    marginBottom: 6,
   },
   logoScriptSmall: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: 2,
+    letterSpacing: 3,
     textTransform: "uppercase",
   },
   logoIndiaBoxSmall: {
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 2,
+    borderRadius: 3,
     alignItems: "center",
     justifyContent: "center",
   },
   logoIndiaSmall: {
-    color: "#0D4EBA",
+    color: "#1A4FC4",
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 2,
@@ -437,23 +453,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   footerSubtitle: {
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(255,255,255,0.45)",
     fontSize: 11,
-    marginTop: 8,
     textAlign: "center",
-  },
-  errorBox: {
-    backgroundColor: "#FFF1F2",
-    borderWidth: 1,
-    borderColor: "#FECDD3",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 14,
-  },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
   },
 });

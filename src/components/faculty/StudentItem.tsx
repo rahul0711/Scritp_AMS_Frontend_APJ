@@ -4,132 +4,158 @@ import { Check } from "lucide-react-native";
 import { C } from "./Theme";
 import { Student } from "@/services/auth";
 
+/** Fixed row height — must match STUDENT_ITEM_HEIGHT in StudentRoster */
+export const STUDENT_ITEM_HEIGHT = 76;
+
 interface StudentItemProps {
   student: Student;
+  index: number;
   isChecked: boolean;
   onToggle: (id: number, current: boolean) => void;
-  showBorder: boolean;
-  isLast?: boolean;
 }
 
-export const StudentItem = React.memo(({
-  student,
-  isChecked,
-  onToggle,
-  showBorder,
-  isLast,
-}: StudentItemProps) => {
-  return (
-    <TouchableOpacity
-      onPress={() => onToggle(student.studentRegistrationId, isChecked)}
-      style={[
-        styles.studentRow,
-        isChecked && styles.studentRowChecked,
-        showBorder && styles.studentRowBorder,
-        isLast && styles.studentRowLast,
-      ]}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-        {isChecked && <Check size={13} color={C.white} strokeWidth={3} />}
-      </View>
-      <View style={styles.studentInfo}>
-        <Text style={styles.studentName}>{student.nameAsPerMarksheet}</Text>
-        <Text style={styles.studentEnroll}>Enrollment: {student.enrollmentNo}</Text>
-      </View>
-      <View style={[styles.statusBadge, isChecked ? styles.statusPresent : styles.statusAbsent]}>
-        <Text style={[styles.statusText, isChecked ? styles.statusPresentText : styles.statusAbsentText]}>
-          {isChecked ? "Present" : "Absent"}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.isChecked === nextProps.isChecked &&
-    prevProps.isLast === nextProps.isLast &&
-    prevProps.student.studentRegistrationId === nextProps.student.studentRegistrationId &&
-    prevProps.student.nameAsPerMarksheet === nextProps.student.nameAsPerMarksheet &&
-    prevProps.student.enrollmentNo === nextProps.student.enrollmentNo &&
-    prevProps.showBorder === nextProps.showBorder &&
-    prevProps.onToggle === nextProps.onToggle
-  );
-});
+export const StudentItem = React.memo(
+  ({ student, index, isChecked, onToggle }: StudentItemProps) => {
+    return (
+      <TouchableOpacity
+        onPress={() => onToggle(student.studentRegistrationId, isChecked)}
+        style={[styles.row, isChecked ? styles.rowPresent : styles.rowAbsent]}
+        activeOpacity={0.72}
+      >
+        {/* Left colored accent */}
+        <View style={[styles.accentBar, isChecked ? styles.barPresent : styles.barAbsent]} />
+
+        {/* Serial number */}
+        <View style={styles.serialBox}>
+          <Text style={styles.serialText}>{String(index + 1).padStart(2, "0")}</Text>
+        </View>
+
+        {/* Checkbox */}
+        <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
+          {isChecked && <Check size={14} color={C.white} strokeWidth={3} />}
+        </View>
+
+        {/* Student info */}
+        <View style={styles.infoCol}>
+          <Text style={styles.name} numberOfLines={1}>
+            {student.nameAsPerMarksheet}
+          </Text>
+          <Text style={styles.enroll}>#{student.enrollmentNo}</Text>
+        </View>
+
+        {/* Status badge */}
+        <View style={[styles.badge, isChecked ? styles.badgePresent : styles.badgeAbsent]}>
+          <Text style={[styles.badgeText, isChecked ? styles.badgeTextPresent : styles.badgeTextAbsent]}>
+            {isChecked ? "P" : "A"}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  },
+  (prev, next) =>
+    prev.isChecked === next.isChecked &&
+    prev.index === next.index &&
+    prev.student.studentRegistrationId === next.student.studentRegistrationId &&
+    prev.onToggle === next.onToggle
+);
 
 const styles = StyleSheet.create({
-  studentRow: {
+  row: {
+    height: STUDENT_ITEM_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
     backgroundColor: C.white,
-    borderLeftWidth: 1.5,
-    borderRightWidth: 1.5,
+    marginBottom: 6,
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1.5,
     borderColor: C.border,
+    elevation: 1,
+    shadowColor: C.cardShadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
   },
-  studentRowChecked: {
-    backgroundColor: "#F0F5FF",
+  rowPresent: {
+    borderColor: C.successBorder,
+    backgroundColor: "#F0FDF8",
   },
-  studentRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: C.border,
+  rowAbsent: {
+    borderColor: C.dangerBorder,
+    backgroundColor: "#FFF8F8",
   },
-  studentRowLast: {
-    borderBottomWidth: 1.5,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    marginBottom: 14,
+  accentBar: {
+    width: 5,
+    alignSelf: "stretch",
+  },
+  barPresent: {
+    backgroundColor: C.success,
+  },
+  barAbsent: {
+    backgroundColor: C.danger,
+  },
+  serialBox: {
+    width: 36,
+    alignItems: "center",
+  },
+  serialText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: C.textLight,
   },
   checkbox: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     borderWidth: 2,
     borderColor: C.primaryBorder,
     backgroundColor: C.white,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
   checkboxChecked: {
-    backgroundColor: C.primaryMid,
-    borderColor: C.primaryMid,
+    backgroundColor: C.success,
+    borderColor: C.success,
   },
-  studentInfo: {
+  infoCol: {
     flex: 1,
+    marginRight: 8,
   },
-  studentName: {
+  name: {
     fontSize: 14,
     fontWeight: "800",
     color: C.text,
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
-  studentEnroll: {
-    fontSize: 12,
+  enroll: {
+    fontSize: 11.5,
     color: C.textMuted,
     marginTop: 3,
     fontWeight: "500",
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
+  badge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
   },
-  statusPresent: {
+  badgePresent: {
     backgroundColor: C.successBg,
   },
-  statusAbsent: {
+  badgeAbsent: {
     backgroundColor: C.dangerBg,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "800",
+  badgeText: {
+    fontSize: 13,
+    fontWeight: "900",
   },
-  statusPresentText: {
+  badgeTextPresent: {
     color: C.success,
   },
-  statusAbsentText: {
+  badgeTextAbsent: {
     color: C.danger,
   },
 });

@@ -1,7 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { BookOpen, GraduationCap, Layers } from "lucide-react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { BookOpen, Clock, GraduationCap, Layers } from "lucide-react-native";
 import { C } from "./Theme";
 import { OptionType } from "./types";
 
@@ -12,114 +11,127 @@ interface SessionSummaryProps {
   selectedTime: OptionType | null;
 }
 
+interface ChipProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}
+
+const Chip = React.memo(({ icon, label, value }: ChipProps) => (
+  <View style={chip.container}>
+    <View style={chip.iconWrap}>{icon}</View>
+    <View>
+      <Text style={chip.label}>{label}</Text>
+      <Text style={chip.value} numberOfLines={1}>{value}</Text>
+    </View>
+  </View>
+));
+
 export const SessionSummary = React.memo(({
   selectedCourse,
   selectedSemester,
   selectedSubject,
+  selectedTime,
 }: SessionSummaryProps) => {
-  const selectedCount = [selectedCourse, selectedSemester, selectedSubject].filter(Boolean).length;
-
-  if (selectedCount === 0) return null;
+  const hasAny = !!(selectedCourse || selectedSemester || selectedSubject || selectedTime);
+  if (!hasAny) return null;
 
   return (
-    <View style={styles.summaryCard}>
-      <LinearGradient
-        colors={[C.primary, C.primaryMid]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.summaryHeader}
+    <View style={styles.wrapper}>
+      <Text style={styles.heading}>Active Session</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.strip}
       >
-        <Text style={styles.summaryHeaderText}>Active Session Details</Text>
-      </LinearGradient>
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryCol}>
-          <View style={styles.labelContainer}>
-            <GraduationCap size={13} color={C.primaryMid} />
-            <Text style={styles.summaryLabel}>Programme</Text>
-          </View>
-          <Text style={styles.summaryValue} numberOfLines={1}>
-            {selectedCourse?.name ?? "—"}
-          </Text>
-        </View>
-
-        <View style={[styles.summaryCol, styles.borderLeft]}>
-          <View style={styles.labelContainer}>
-            <Layers size={13} color={C.primaryMid} />
-            <Text style={styles.summaryLabel}>Semester</Text>
-          </View>
-          <Text style={styles.summaryValue} numberOfLines={1}>
-            {selectedSemester?.name ?? "—"}
-          </Text>
-        </View>
-
-        <View style={[styles.summaryCol, styles.borderLeft]}>
-          <View style={styles.labelContainer}>
-            <BookOpen size={13} color={C.primaryMid} />
-            <Text style={styles.summaryLabel}>Subject</Text>
-          </View>
-          <Text style={styles.summaryValue} numberOfLines={2}>
-            {selectedSubject?.name ?? "—"}
-          </Text>
-        </View>
-      </View>
+        {selectedCourse && (
+          <Chip
+            icon={<GraduationCap size={14} color={C.primaryMid} />}
+            label="Programme"
+            value={selectedCourse.name}
+          />
+        )}
+        {selectedSemester && (
+          <Chip
+            icon={<Layers size={14} color={C.primaryMid} />}
+            label="Semester"
+            value={selectedSemester.name}
+          />
+        )}
+        {selectedSubject && (
+          <Chip
+            icon={<BookOpen size={14} color={C.primaryMid} />}
+            label="Subject"
+            value={selectedSubject.name}
+          />
+        )}
+        {selectedTime && (
+          <Chip
+            icon={<Clock size={14} color={C.primaryMid} />}
+            label="Time Slot"
+            value={selectedTime.name}
+          />
+        )}
+      </ScrollView>
     </View>
   );
 });
 
-const styles = StyleSheet.create({
-  summaryCard: {
-    borderRadius: 18,
-    marginBottom: 14,
-    overflow: "hidden",
-    borderWidth: 1.5,
-    borderColor: C.border,
-    elevation: 3,
-    shadowColor: C.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-  },
-  summaryHeader: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  summaryHeaderText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: C.white,
-    letterSpacing: 0.3,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    backgroundColor: C.white,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-  },
-  summaryCol: {
-    flex: 1,
-    paddingHorizontal: 8,
-    justifyContent: "flex-start",
-  },
-  borderLeft: {
-    borderLeftWidth: 1,
-    borderLeftColor: C.border,
-  },
-  labelContainer: {
+const chip = StyleSheet.create({
+  container: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    marginBottom: 4,
+    backgroundColor: C.white,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginRight: 10,
+    borderWidth: 1.5,
+    borderColor: C.primaryBorder,
+    gap: 8,
+    elevation: 2,
+    shadowColor: C.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
-  summaryLabel: {
-    fontSize: 10,
+  iconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: C.primaryBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  label: {
+    fontSize: 9.5,
     fontWeight: "700",
     color: C.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  summaryValue: {
+  value: {
     fontSize: 13,
     fontWeight: "700",
     color: C.text,
+    maxWidth: 120,
+  },
+});
+
+const styles = StyleSheet.create({
+  wrapper: {
+    marginBottom: 14,
+  },
+  heading: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: C.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    paddingLeft: 2,
+  },
+  strip: {
+    paddingRight: 4,
   },
 });
