@@ -20,6 +20,7 @@ import {
 export default function LoginScreen() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const [loginMode, setLoginMode] = useState<"faculty" | "student">("faculty");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -102,17 +103,21 @@ export default function LoginScreen() {
             </View>
 
             {/* Title & Subtitle */}
-            <Text style={styles.title}>Student Attendance System</Text>
+            <Text style={styles.title}>
+              {loginMode === "faculty" ? "Faculty Portal" : "Student Portal"}
+            </Text>
             <Text style={styles.subtitle}>
-              Mark Attendance. Track Progress. Build Future.
+              {loginMode === "faculty"
+                ? "Manage Classes. Mark Attendance. Build Records."
+                : "View Attendance. Track Progress. Check Reports."}
             </Text>
 
-            {/* Username Input */}
+            {/* Username / Enrollment Input */}
             <View style={styles.inputContainer}>
               <User size={18} color="#8A9BB8" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Username"
+                placeholder={loginMode === "student" ? "Enrollment Number" : "Username"}
                 placeholderTextColor="#B0BDD0"
                 value={username}
                 onChangeText={(t) => {
@@ -178,9 +183,20 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Forgot Password */}
-            <TouchableOpacity activeOpacity={0.7} style={styles.forgotContainer}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
+            {/* Mode Switch */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.modeSwitchContainer}
+              onPress={() => {
+                setLoginMode(loginMode === "faculty" ? "student" : "faculty");
+                setUsername("");
+                setPassword("");
+                setError("");
+              }}
+            >
+              <Text style={styles.modeSwitchText}>
+                {loginMode === "faculty" ? "Student Login" : "Faculty Login"}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -400,11 +416,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Forgot password
-  forgotContainer: {
+  // Mode switch
+  modeSwitchContainer: {
     paddingVertical: 4,
   },
-  forgotText: {
+  modeSwitchText: {
     color: "#1A4FC4",
     fontSize: 14,
     fontWeight: "700",

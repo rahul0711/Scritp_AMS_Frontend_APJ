@@ -6,11 +6,13 @@ import { C } from "./Theme";
 import { UserData } from "@/services/auth";
 
 interface ProfileScreenProps {
-  record: UserData;
+  record?: UserData;
   onLogout: () => void;
 }
 
 export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProps) => {
+  if (!record) return null;
+
   const initials = record.facultyName
     .trim()
     .split(/\s+/)

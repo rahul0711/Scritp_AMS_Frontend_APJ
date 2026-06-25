@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 36,
+    paddingBottom: 96,
   },
 
   // Stats banner

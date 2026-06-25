@@ -13,8 +13,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { AlertCircle, Check } from "lucide-react-native";
+import { AlertCircle, Check, PlayCircle } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
+import { SuccessOverlay } from "@/components/faculty/SuccessOverlay";
 
 import {
   facultyInAttendance,
@@ -38,8 +40,10 @@ import { BottomNav, FacultyTab } from "@/components/faculty/BottomNav";
 import { ReportsScreen } from "@/components/faculty/ReportsScreen";
 import { ProfileScreen } from "@/components/faculty/ProfileScreen";
 
+const isFabric = !!(globalThis as any).nativeFabricUIManager;
 if (
   Platform.OS === "android" &&
+  !isFabric &&
   UIManager.setLayoutAnimationEnabledExperimental
 ) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -78,6 +82,7 @@ export default function FacultyDashboard() {
   const [selectedSemester, setSelectedSemester] = useState<OptionType | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<OptionType | null>(null);
   const [selectedTime, setSelectedTime] = useState<OptionType | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // ── Option lists ──────────────────────────────────────────────────────────
   const [semesterOptions, setSemesterOptions] = useState<OptionType[]>([]);
@@ -317,7 +322,10 @@ export default function FacultyDashboard() {
         timeSlotId: selectedTime.id,
         remarks: "Lecture Started",
       });
-      Alert.alert("Success", result.message || "Attendance started successfully!");
+      
+      // Trigger Success Animation overlay
+      setShowSuccess(true);
+
       setLoad("students", true);
       setStudents([]);
       setStudentsMessage(null);
@@ -358,10 +366,11 @@ export default function FacultyDashboard() {
           status: checkedStudents[s.studentRegistrationId] ? ("P" as const) : ("A" as const),
         })),
       });
-      Alert.alert(
-        res.success ? "Success ✓" : "Error",
-        res.message || (res.success ? "Attendance saved!" : "Failed to save.")
-      );
+      if (res.success) {
+        setShowSuccess(true);
+      } else {
+        Alert.alert("Error", res.message || "Failed to save.");
+      }
     } catch (err: any) {
       Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to save attendance.");
     } finally {
@@ -469,7 +478,7 @@ export default function FacultyDashboard() {
         <ReportsScreen facultyName={facultyName} />
       )}
 
-      {activeTab === "profile" && (
+      {activeTab === "profile" && allRecords[0] && (
         <ProfileScreen record={allRecords[0]} onLogout={handleLogout} />
       )}
 
@@ -529,40 +538,48 @@ export default function FacultyDashboard() {
         </ScrollView>
       ))}
 
-      {/* ── Sticky Save Attendance Bar (Dashboard only) ── */}
-      {activeTab === "dashboard" && students.length > 0 && (
-        <View style={s.stickyBottom}>
-          <View style={s.saveSummary}>
-            <Text style={s.saveSummaryText}>
-              <Text style={s.saveP}>{presentCount}P</Text>
-              {"  "}
-              <Text style={s.saveA}>{absentCount}A</Text>
-              {"  "}of {students.length} students
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleSaveAttendance}
-            disabled={savingAttendance}
-            activeOpacity={0.85}
-            style={s.saveBtn}
+      {/* ── Floating Action Button (FAB) ── */}
+      {activeTab === "dashboard" && (
+        ((students.length === 0 && allFiltersSet) || (students.length > 0)) && (
+          <Animated.View
+            entering={FadeInDown.springify()}
+            exiting={FadeOutDown.duration(200)}
+            style={s.fab}
           >
-            <LinearGradient
-              colors={[C.success, C.successDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={s.saveGrad}
+            <TouchableOpacity
+              onPress={students.length === 0 ? handleSubmit : handleSaveAttendance}
+              disabled={students.length === 0 ? submitting : savingAttendance}
+              activeOpacity={0.85}
             >
-              {savingAttendance ? (
-                <ActivityIndicator size="small" color={C.white} />
-              ) : (
-                <>
-                  <Check size={20} color={C.white} strokeWidth={2.5} />
-                  <Text style={s.saveText}>Save Attendance</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+              <LinearGradient
+                colors={[C.success, C.successDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={s.fabGrad}
+              >
+                {students.length === 0 ? (
+                  submitting ? (
+                    <ActivityIndicator size="small" color={C.white} />
+                  ) : (
+                    <>
+                      <PlayCircle size={20} color={C.white} />
+                      <Text style={s.fabText}>Start Class</Text>
+                    </>
+                  )
+                ) : (
+                  savingAttendance ? (
+                    <ActivityIndicator size="small" color={C.white} />
+                  ) : (
+                    <>
+                      <Check size={20} color={C.white} strokeWidth={2.5} />
+                      <Text style={s.fabText}>Save Attendance</Text>
+                    </>
+                  )
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )
       )}
 
       {/* ── Bottom Sheet Picker ── */}
@@ -577,6 +594,9 @@ export default function FacultyDashboard() {
 
       {/* ── Bottom Navigation ── */}
       <BottomNav activeTab={activeTab} onTabPress={setActiveTab} />
+
+      {/* ── Success Animation Overlay ── */}
+      <SuccessOverlay visible={showSuccess} onComplete={() => setShowSuccess(false)} />
     </SafeAreaView>
   );
 }
@@ -642,46 +662,32 @@ const s = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Sticky save bar
-  stickyBottom: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: C.white,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-    gap: 8,
-  },
-  saveSummary: {
-    alignItems: "center",
-  },
-  saveSummaryText: {
-    fontSize: 13,
-    color: C.textMuted,
-    fontWeight: "600",
-  },
-  saveP: {
-    color: C.success,
-    fontWeight: "800",
-  },
-  saveA: {
-    color: C.danger,
-    fontWeight: "800",
-  },
-  saveBtn: {
-    borderRadius: 18,
+  // Floating Action Button
+  fab: {
+    position: "absolute",
+    bottom: 85,
+    right: 18,
+    borderRadius: 28,
     overflow: "hidden",
+    elevation: 8,
+    shadowColor: C.success,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    zIndex: 100,
   },
-  saveGrad: {
+  fabGrad: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 17,
-    gap: 10,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+    gap: 8,
   },
-  saveText: {
+  fabText: {
     color: C.white,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "800",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
 });

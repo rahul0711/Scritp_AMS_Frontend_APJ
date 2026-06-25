@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   BookOpen,
-  Check,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -162,31 +161,6 @@ export const SessionSetup = React.memo(({
           </TouchableOpacity>
         )}
 
-        {/* Start Session button — visible only when all set + studentsMessage (attendance not yet started) */}
-        {allFiltersSet && !!studentsMessage && (
-          <TouchableOpacity
-            onPress={onSubmit}
-            disabled={submitting}
-            style={styles.submitBtn}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={[C.success, C.successDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.submitGrad}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color={C.white} />
-              ) : (
-                <>
-                  <Check size={20} color={C.white} strokeWidth={2.5} />
-                  <Text style={styles.submitText}>Mark IN &amp; Start Session</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
       </View>}
     </View>
   );
