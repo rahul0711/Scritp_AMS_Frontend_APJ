@@ -16,7 +16,7 @@ import {
   UIManager,
   View,
 } from "react-native";
-import Animated, { FadeInDown, FadeInLeft, FadeInRight, FadeOutDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -135,6 +135,11 @@ export default function FacultyDashboard() {
   // ── Active bottom-nav tab ─────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<FacultyTab>("dashboard");
   const [prevTab, setPrevTab] = useState<FacultyTab>("dashboard");
+  const [parentScrollEnabled, setParentScrollEnabled] = useState(true);
+
+  const disableParentScroll = useCallback(() => setParentScrollEnabled(false), []);
+  const enableParentScroll = useCallback(() => setParentScrollEnabled(true), []);
+
   const scrollViewRef = useRef<ScrollView>(null);
   const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -410,7 +415,7 @@ export default function FacultyDashboard() {
         })),
       });
       if (res.success) {
-        showBanner("Attendance saved successfully!", "success");
+        showBanner(res.message, "success");
       } else {
         showBanner(res.message || "Failed to save.", "error");
       }
@@ -516,6 +521,7 @@ export default function FacultyDashboard() {
         ref={scrollViewRef}
         horizontal
         pagingEnabled
+        scrollEnabled={parentScrollEnabled}
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onScrollEnd}
         style={s.tabContent}
@@ -544,6 +550,8 @@ export default function FacultyDashboard() {
                   selectedSemester={selectedSemester}
                   selectedSubject={selectedSubject}
                   selectedTime={selectedTime}
+                  onTouchStart={disableParentScroll}
+                  onTouchEnd={enableParentScroll}
                 />
               }
             />
@@ -562,6 +570,8 @@ export default function FacultyDashboard() {
                 selectedSemester={selectedSemester}
                 selectedSubject={selectedSubject}
                 selectedTime={selectedTime}
+                onTouchStart={disableParentScroll}
+                onTouchEnd={enableParentScroll}
               />
 
               {/* Student loading / message states */}

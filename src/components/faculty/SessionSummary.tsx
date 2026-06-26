@@ -9,6 +9,8 @@ interface SessionSummaryProps {
   selectedSemester: OptionType | null;
   selectedSubject: OptionType | null;
   selectedTime: OptionType | null;
+  onTouchStart?: () => void;
+  onTouchEnd?: () => void;
 }
 
 interface ChipProps {
@@ -32,6 +34,8 @@ export const SessionSummary = React.memo(({
   selectedSemester,
   selectedSubject,
   selectedTime,
+  onTouchStart,
+  onTouchEnd,
 }: SessionSummaryProps) => {
   const hasAny = !!(selectedCourse || selectedSemester || selectedSubject || selectedTime);
   if (!hasAny) return null;
@@ -43,6 +47,11 @@ export const SessionSummary = React.memo(({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.strip}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+        onScrollEndDrag={onTouchEnd}
+        nestedScrollEnabled={true}
       >
         {selectedCourse && (
           <Chip

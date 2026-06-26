@@ -125,10 +125,7 @@ export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProp
           </View>
           <Text style={styles.name}>{record.facultyName}</Text>
 
-          <View style={styles.rolePill}>
-            <UserCircle size={13} color={C.primaryMid} />
-            <Text style={styles.roleText}>Faculty</Text>
-          </View>
+         
         </LinearGradient>
 
 

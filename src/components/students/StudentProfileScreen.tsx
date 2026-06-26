@@ -240,8 +240,8 @@ export const StudentProfileScreen = React.memo(({
               <Layers size={16} color={C.primaryMid} />
             </View>
             <View style={styles.infoCol}>
-              <Text style={styles.infoLabel}>Programme / Course Code</Text>
-              <Text style={styles.infoValue}>Course ID: {studentData.courseId}</Text>
+              <Text style={styles.infoLabel}>Programme / Course Name</Text>
+              <Text style={styles.infoValue}>Course Name: {studentData.courseName}</Text>
             </View>
           </View>
         </View>
@@ -276,7 +276,7 @@ export const StudentProfileScreen = React.memo(({
         {/* Logout button */}
         <TouchableOpacity onPress={onLogout} style={styles.logoutBtn} activeOpacity={0.85}>
           <LogOut size={18} color={C.danger} />
-          <Text style={styles.logoutText}>Logout from Portal</Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
 

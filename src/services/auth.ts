@@ -27,6 +27,7 @@ export type StudentData = {
   name: string;
   enrollmentNo: string;
   courseId: number;
+  courseName: string;
   semesterId: number;
   semesterName: string;
   mobile: string;
@@ -41,6 +42,7 @@ export type StudentLoginResponse = {
   name: string;
   enrollmentNo: string;
   courseId: number;
+  courseName: string;
   semesterId: number;
   semesterName: string;
   mobile: string;
@@ -197,6 +199,7 @@ export async function loginStudent(enrollmentNo: string, password: string): Prom
       name: data.name || rawData.Name || "",
       enrollmentNo: data.enrollmentNo || rawData.EnrollmentNo || "",
       courseId: data.courseId || rawData.CourseId || 0,
+      courseName: data.courseName || rawData.CourseName || "",
       semesterId: data.semesterId || rawData.SemesterId || 0,
       semesterName: data.semesterName || rawData.SemesterName || "",
       mobile: data.mobile || rawData.Mobile || "",

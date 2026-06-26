@@ -46,7 +46,9 @@ export const HeroAttendanceCard = React.memo(({
       </View>
       <View style={[styles.statusBadge, isAttendanceSafe ? styles.statusBadgeSafe : styles.statusBadgeDanger]}>
         <Text style={[styles.statusText, isAttendanceSafe ? styles.statusTextSafe : styles.statusTextDanger]}>
-          {isAttendanceSafe ? "✅ Above Required Attendance (75%)" : "⚠️ Below Required Attendance (75%)"}
+          {isAttendanceSafe
+  ? "Requirement Satisfied"
+  : "Requirement Not Satisfied"}
         </Text>
       </View>
     </View>
