@@ -1,18 +1,15 @@
-import { UserData, changeFacultyPassword } from "@/services/auth";
-import { LinearGradient } from "expo-linear-gradient";
+import { StudentData, changeStudentPassword } from "@/services/auth";
 import {
-  BookOpen,
   ChevronDown,
   ChevronUp,
+  Clock,
   Eye,
   EyeOff,
-  GraduationCap,
+  Layers,
   Lock,
   LogOut,
   Mail,
   Phone,
-  Shield,
-  UserCircle,
 } from "lucide-react-native";
 import React from "react";
 import {
@@ -24,17 +21,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { NotificationBanner } from "./NotificationBanner";
-import { C } from "./Theme";
+import { NotificationBanner } from "../faculty/NotificationBanner";
+import { C } from "../faculty/Theme";
 
-interface ProfileScreenProps {
-  record?: UserData;
+interface StudentProfileScreenProps {
+  studentData: StudentData;
+  initials: string;
   onLogout: () => void;
 }
 
-export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProps) => {
-  if (!record) return null;
-
+export const StudentProfileScreen = React.memo(({
+  studentData,
+  initials,
+  onLogout,
+}: StudentProfileScreenProps) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [oldPassword, setOldPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
@@ -70,8 +70,8 @@ export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProp
     }
     setLoading(true);
     try {
-      const response = await changeFacultyPassword({
-        UserId: record.userId,
+      const response = await changeStudentPassword({
+        StudentRegistrationId: studentData.studentRegistrationId,
         OldPassword: oldPassword,
         NewPassword: newPassword,
         ConfirmNewPassword: confirmNewPassword,
@@ -94,47 +94,26 @@ export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProp
     }
   };
 
-  const initials = record.facultyName
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-
-  const infoRows = [
-    { Icon: Mail, label: "Email", value: record.emailId ?? "Not provided" },
-    { Icon: Phone, label: "Contact", value: record.contactNo ?? "Not provided" },
-    { Icon: Shield, label: "User Type", value: record.userType === "2" ? "Faculty" : record.userType },
-    { Icon: GraduationCap, label: "Programme", value: record.courseName },
-    { Icon: BookOpen, label: "Subject", value: record.subjectName },
-  ];
-
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Avatar + Name banner */}
-        <LinearGradient
-          colors={[C.primary, C.primaryMid, C.primaryLight]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.banner}
-        >
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-          <Text style={styles.name}>{record.facultyName}</Text>
+      {/* Profile Header */}
+      <View style={styles.profileHeader}>
+        <View style={styles.profileAvatar}>
+          <Text style={styles.profileAvatarText}>{initials}</Text>
+        </View>
+        <Text style={styles.profileName}>{studentData.name}</Text>
+        <Text style={styles.profileEnroll}>Enrollment No: {studentData.enrollmentNo}</Text>
+        <View style={styles.studentRoleBadge}>
+          <Text style={styles.studentRoleText}>Student</Text>
+        </View>
+      </View>
 
-          <View style={styles.rolePill}>
-            <UserCircle size={13} color={C.primaryMid} />
-            <Text style={styles.roleText}>Faculty</Text>
-          </View>
-        </LinearGradient>
-
-
-
-  {/* Change Password Card */}
-
+      {/* Profile Details scroll */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.profileScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
 
         <View style={styles.card}>
           <TouchableOpacity
@@ -243,29 +222,61 @@ export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProp
           )}
         </View>
 
-        {/* Info card */}
         <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Account Details</Text>
-          {infoRows.map(({ Icon, label, value }) => (
-            <View key={label} style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Icon size={16} color={C.primaryMid} />
-              </View>
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>{label}</Text>
-                <Text style={styles.infoValue} numberOfLines={2}>{value}</Text>
-              </View>
+          <Text style={styles.infoSectionTitle}>Academic Info</Text>
+
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <Clock size={16} color={C.primaryMid} />
             </View>
-          ))}
+            <View style={styles.infoCol}>
+              <Text style={styles.infoLabel}>Semester</Text>
+              <Text style={styles.infoValue}>{studentData.semesterName} Semester</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <Layers size={16} color={C.primaryMid} />
+            </View>
+            <View style={styles.infoCol}>
+              <Text style={styles.infoLabel}>Programme / Course Code</Text>
+              <Text style={styles.infoValue}>Course ID: {studentData.courseId}</Text>
+            </View>
+          </View>
         </View>
 
-      
+        <View style={styles.infoCard}>
+          <Text style={styles.infoSectionTitle}>Contact Details</Text>
+
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <Mail size={16} color={C.primaryMid} />
+            </View>
+            <View style={styles.infoCol}>
+              <Text style={styles.infoLabel}>Email Address</Text>
+              <Text style={styles.infoValue}>{studentData.emailId || "Not provided"}</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <Phone size={16} color={C.primaryMid} />
+            </View>
+            <View style={styles.infoCol}>
+              <Text style={styles.infoLabel}>Mobile Number</Text>
+              <Text style={styles.infoValue}>{studentData.mobile || "Not provided"}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Change Password Card */}
 
 
-        {/* Logout */}
+        {/* Logout button */}
         <TouchableOpacity onPress={onLogout} style={styles.logoutBtn} activeOpacity={0.85}>
           <LogOut size={18} color={C.danger} />
-          <Text style={styles.logoutText}>Logout</Text>
+          <Text style={styles.logoutText}>Logout from Portal</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -280,121 +291,136 @@ export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProp
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-  content: { paddingBottom: 40 },
-
-  // Banner
-  banner: {
-    alignItems: "center",
-    paddingTop: 36,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.22)",
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  avatarText: { fontSize: 30, fontWeight: "800", color: C.white },
-  name: { fontSize: 20, fontWeight: "800", color: C.white, marginBottom: 4 },
-  username: { fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 12 },
-  rolePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  profileHeader: {
     backgroundColor: C.white,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  roleText: { fontSize: 13, fontWeight: "700", color: C.primaryMid },
-
-  // Info card
-  infoCard: {
-    backgroundColor: C.white,
-    marginHorizontal: 16,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    marginBottom: 14,
-    elevation: 3,
-    shadowColor: C.cardShadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: C.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.7,
-    marginBottom: 14,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 14,
-    paddingVertical: 10,
+    alignItems: "center",
+    paddingVertical: 32,
     borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderColor: C.border,
   },
-  infoIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+  profileAvatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: C.primaryBg,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
+    borderWidth: 2,
+    borderColor: C.primaryBorder,
+    marginBottom: 12,
   },
-  infoText: { flex: 1 },
-  infoLabel: { fontSize: 10.5, fontWeight: "700", color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 },
-  infoValue: { fontSize: 14, fontWeight: "700", color: C.text },
-
-  // Logout
+  profileAvatarText: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: C.primaryMid,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: C.text,
+  },
+  profileEnroll: {
+    fontSize: 12,
+    color: C.textMuted,
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  studentRoleBadge: {
+    backgroundColor: C.primaryBg,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  studentRoleText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: C.primaryMid,
+  },
+  profileScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  infoCard: {
+    backgroundColor: C.white,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    marginBottom: 12,
+  },
+  infoSectionTitle: {
+    fontSize: 11.5,
+    fontWeight: "800",
+    color: C.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#F3F4F6",
+  },
+  infoIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: C.primaryBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  infoCol: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 10.5,
+    color: C.textLight,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  infoValue: {
+    fontSize: 13.5,
+    color: C.text,
+    fontWeight: "700",
+    marginTop: 1,
+  },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    marginHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 18,
+    paddingVertical: 14,
+    borderRadius: 16,
     backgroundColor: C.dangerBg,
     borderWidth: 1.5,
     borderColor: C.dangerBorder,
+    marginTop: 16,
   },
-  logoutText: { fontSize: 16, fontWeight: "800", color: C.danger },
+  logoutText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: C.danger,
+  },
 
   // Collapsible Change Password Card
   card: {
     backgroundColor: C.white,
-    marginHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1.5,
     borderColor: C.border,
-    marginBottom: 14,
-    elevation: 3,
-    shadowColor: C.cardShadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    marginBottom: 12,
     overflow: "hidden",
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 18,
+    padding: 16,
   },
   cardHeaderLeft: {
     flexDirection: "row",
@@ -402,19 +428,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: "700",
     color: C.text,
   },
   formContainer: {
-    paddingHorizontal: 18,
-    paddingBottom: 18,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     borderTopWidth: 1,
     borderTopColor: C.border,
-    paddingTop: 14,
+    paddingTop: 12,
   },
   inputLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: "700",
     color: C.textMuted,
     textTransform: "uppercase",
@@ -429,13 +455,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: C.bg,
     paddingHorizontal: 12,
-    marginBottom: 14,
-    height: 48,
+    marginBottom: 12,
+    height: 46,
   },
   textInput: {
     flex: 1,
     height: "100%",
-    fontSize: 14,
+    fontSize: 13.5,
     color: C.text,
     fontWeight: "600",
   },
@@ -445,7 +471,7 @@ const styles = StyleSheet.create({
   submitBtn: {
     backgroundColor: C.primaryMid,
     borderRadius: 12,
-    height: 48,
+    height: 46,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 6,
@@ -455,7 +481,7 @@ const styles = StyleSheet.create({
   },
   submitBtnText: {
     color: C.white,
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: "700",
   },
 });

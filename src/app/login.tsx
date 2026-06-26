@@ -1,4 +1,4 @@
-import { login } from "@/services/auth";
+import { login, loginStudent } from "@/services/auth";
 import { useAuthStore } from "@/store/authStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -36,9 +36,15 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      const { allRecords, role } = await login(username.trim(), password);
-      setAuth(allRecords, role);
-      router.replace(role === "faculty" ? "/faculty" : "/student");
+      if (loginMode === "faculty") {
+        const { allRecords, role } = await login(username.trim(), password);
+        setAuth(allRecords, role);
+        router.replace("/faculty");
+      } else {
+        const studentData = await loginStudent(username.trim(), password);
+        setAuth([], "student", studentData);
+        router.replace("/student");
+      }
     } catch (err: any) {
       setError(err?.message ?? "Something went wrong. Please try again.");
     } finally {

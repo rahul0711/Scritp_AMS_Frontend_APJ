@@ -1,7 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NotificationBanner } from "@/components/faculty/NotificationBanner";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { AlertCircle, Check, PlayCircle } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   LayoutAnimation,
   Platform,
   ScrollView,
@@ -11,12 +16,8 @@ import {
   UIManager,
   View,
 } from "react-native";
+import Animated, { FadeInDown, FadeInLeft, FadeInRight, FadeOutDown } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
-import { AlertCircle, Check, PlayCircle } from "lucide-react-native";
-import { useRouter } from "expo-router";
-import Animated, { FadeInDown, FadeOutDown } from "react-native-reanimated";
-import { SuccessOverlay } from "@/components/faculty/SuccessOverlay";
 
 import {
   facultyInAttendance,
@@ -29,16 +30,16 @@ import {
 } from "@/services/auth";
 import { useAuthStore } from "@/store/authStore";
 
-import { C } from "@/components/faculty/Theme";
-import { OptionType } from "@/components/faculty/types";
+import { BottomNav, FacultyTab } from "@/components/faculty/BottomNav";
+import { BottomSheetPicker } from "@/components/faculty/BottomSheetPicker";
 import { FacultyHeader } from "@/components/faculty/FacultyHeader";
+import { ProfileScreen } from "@/components/faculty/ProfileScreen";
+import { ReportsScreen } from "@/components/faculty/ReportsScreen";
 import { SessionSetup } from "@/components/faculty/SessionSetup";
 import { SessionSummary } from "@/components/faculty/SessionSummary";
 import { StudentRoster } from "@/components/faculty/StudentRoster";
-import { BottomSheetPicker } from "@/components/faculty/BottomSheetPicker";
-import { BottomNav, FacultyTab } from "@/components/faculty/BottomNav";
-import { ReportsScreen } from "@/components/faculty/ReportsScreen";
-import { ProfileScreen } from "@/components/faculty/ProfileScreen";
+import { C } from "@/components/faculty/Theme";
+import { OptionType } from "@/components/faculty/types";
 
 const isFabric = !!(globalThis as any).nativeFabricUIManager;
 if (
@@ -82,7 +83,19 @@ export default function FacultyDashboard() {
   const [selectedSemester, setSelectedSemester] = useState<OptionType | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<OptionType | null>(null);
   const [selectedTime, setSelectedTime] = useState<OptionType | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [notification, setNotification] = useState<{
+    visible: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({ visible: false, message: "", type: "success" });
+
+  const showBanner = useCallback((message: string, type: "success" | "error") => {
+    setNotification({ visible: true, message, type });
+  }, []);
+
+  const hideBanner = useCallback(() => {
+    setNotification((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   // ── Option lists ──────────────────────────────────────────────────────────
   const [semesterOptions, setSemesterOptions] = useState<OptionType[]>([]);
@@ -121,6 +134,36 @@ export default function FacultyDashboard() {
 
   // ── Active bottom-nav tab ─────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<FacultyTab>("dashboard");
+  const [prevTab, setPrevTab] = useState<FacultyTab>("dashboard");
+  const scrollViewRef = useRef<ScrollView>(null);
+  const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+  const tabOrder = useMemo<Record<FacultyTab, number>>(() => ({
+    dashboard: 0,
+    reports: 1,
+    profile: 2,
+  }), []);
+
+  const handleTabPress = useCallback((tab: FacultyTab) => {
+    const tabKeys: FacultyTab[] = ["dashboard", "reports", "profile"];
+    const index = tabKeys.indexOf(tab);
+    if (index !== -1) {
+      scrollViewRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+      setPrevTab(activeTab);
+      setActiveTab(tab);
+    }
+  }, [activeTab, SCREEN_WIDTH]);
+
+  const onScrollEnd = useCallback((e: any) => {
+    const xOffset = e.nativeEvent.contentOffset.x;
+    const index = Math.round(xOffset / SCREEN_WIDTH);
+    const tabKeys: FacultyTab[] = ["dashboard", "reports", "profile"];
+    const tab = tabKeys[index];
+    if (tab && tab !== activeTab) {
+      setPrevTab(activeTab);
+      setActiveTab(tab);
+    }
+  }, [activeTab, SCREEN_WIDTH]);
 
   // ── Picker state ──────────────────────────────────────────────────────────
   const [picker, setPicker] = useState<{
@@ -228,9 +271,9 @@ export default function FacultyDashboard() {
         setSemesterOptions(mapped);
         if (mapped.length === 1) setSelectedSemester(mapped[0]);
       })
-      .catch(() => Alert.alert("Error", "Failed to fetch semesters."))
+      .catch(() => showBanner("Failed to fetch semesters.", "error"))
       .finally(() => setLoad("semesters", false));
-  }, [selectedCourse, userId, setLoad]);
+  }, [selectedCourse, userId, setLoad, showBanner]);
 
   // Fetch subjects when semester changes — with cache
   useEffect(() => {
@@ -260,9 +303,9 @@ export default function FacultyDashboard() {
         setSubjectOptions(mapped);
         if (mapped.length === 1) setSelectedSubject(mapped[0]);
       })
-      .catch(() => Alert.alert("Error", "Failed to fetch subjects."))
+      .catch(() => showBanner("Failed to fetch subjects.", "error"))
       .finally(() => setLoad("subjects", false));
-  }, [selectedSemester, selectedCourse, userId, setLoad]);
+  }, [selectedSemester, selectedCourse, userId, setLoad, showBanner]);
 
   // Fetch students — abort on unmount/deps change
   const fetchAbortRef = useRef(false);
@@ -309,7 +352,7 @@ export default function FacultyDashboard() {
 
   const handleSubmit = useCallback(async () => {
     if (!selectedCourse || !selectedSemester || !selectedSubject || !selectedTime || !userId) {
-      Alert.alert("Error", "Please select all 4 filters first.");
+      showBanner("Please select all 4 filters first.", "error");
       return;
     }
     setSubmitting(true);
@@ -322,9 +365,9 @@ export default function FacultyDashboard() {
         timeSlotId: selectedTime.id,
         remarks: "Lecture Started",
       });
-      
-      // Trigger Success Animation overlay
-      setShowSuccess(true);
+
+      // Trigger Success Notification banner
+      showBanner("Class started successfully!", "success");
 
       setLoad("students", true);
       setStudents([]);
@@ -341,16 +384,16 @@ export default function FacultyDashboard() {
         setStudentsMessage(res.message || "No students found.");
       }
     } catch (err: any) {
-      Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to submit attendance.");
+      showBanner(err?.response?.data?.message || err?.message || "Failed to submit attendance.", "error");
     } finally {
       setSubmitting(false);
       setLoad("students", false);
     }
-  }, [selectedCourse, selectedSemester, selectedSubject, selectedTime, userId, setLoad]);
+  }, [selectedCourse, selectedSemester, selectedSubject, selectedTime, userId, setLoad, showBanner]);
 
   const handleSaveAttendance = useCallback(async () => {
     if (!selectedCourse || !selectedSemester || !selectedSubject || !selectedTime || !userId) {
-      Alert.alert("Error", "Missing required filters.");
+      showBanner("Missing required filters.", "error");
       return;
     }
     setSavingAttendance(true);
@@ -367,16 +410,16 @@ export default function FacultyDashboard() {
         })),
       });
       if (res.success) {
-        setShowSuccess(true);
+        showBanner("Attendance saved successfully!", "success");
       } else {
-        Alert.alert("Error", res.message || "Failed to save.");
+        showBanner(res.message || "Failed to save.", "error");
       }
     } catch (err: any) {
-      Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to save attendance.");
+      showBanner(err?.response?.data?.message || err?.message || "Failed to save attendance.", "error");
     } finally {
       setSavingAttendance(false);
     }
-  }, [selectedCourse, selectedSemester, selectedSubject, selectedTime, userId, students, checkedStudents]);
+  }, [selectedCourse, selectedSemester, selectedSubject, selectedTime, userId, students, checkedStudents, showBanner]);
 
   const handleLogout = useCallback(() => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -468,75 +511,88 @@ export default function FacultyDashboard() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={s.root}>
-      {/* ── Header (shown only on Dashboard tab) ── */}
-      {activeTab === "dashboard" && (
-        <FacultyHeader facultyName={facultyName} onLogout={handleLogout} />
-      )}
-
       {/* ── Tab Content ── */}
-      {activeTab === "reports" && (
-        <ReportsScreen facultyName={facultyName} />
-      )}
-
-      {activeTab === "profile" && allRecords[0] && (
-        <ProfileScreen record={allRecords[0]} onLogout={handleLogout} />
-      )}
-
-      {activeTab === "dashboard" && (students.length > 0 ? (
-        // ── Student Roster view ──
-        <StudentRoster
-          students={students}
-          filteredStudents={filteredStudents}
-          checkedStudents={checkedStudents}
-          presentCount={presentCount}
-          absentCount={absentCount}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onToggleAll={handleToggleAll}
-          onToggleStudent={handleToggleStudent}
-          allChecked={allChecked}
-          ListHeaderComponent={<SessionSetup {...sessionSetupProps} />}
-          ListHeaderComponent2={
-            <SessionSummary
-              selectedCourse={selectedCourse}
-              selectedSemester={selectedSemester}
-              selectedSubject={selectedSubject}
-              selectedTime={selectedTime}
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={onScrollEnd}
+        style={s.tabContent}
+        contentContainerStyle={{ width: SCREEN_WIDTH * 3 }}
+      >
+        {/* Page 0: Dashboard */}
+        <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+          <FacultyHeader facultyName={facultyName} onLogout={handleLogout} />
+          {students.length > 0 ? (
+            // ── Student Roster view ──
+            <StudentRoster
+              students={students}
+              filteredStudents={filteredStudents}
+              checkedStudents={checkedStudents}
+              presentCount={presentCount}
+              absentCount={absentCount}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              onToggleAll={handleToggleAll}
+              onToggleStudent={handleToggleStudent}
+              allChecked={allChecked}
+              ListHeaderComponent={<SessionSetup {...sessionSetupProps} />}
+              ListHeaderComponent2={
+                <SessionSummary
+                  selectedCourse={selectedCourse}
+                  selectedSemester={selectedSemester}
+                  selectedSubject={selectedSubject}
+                  selectedTime={selectedTime}
+                />
+              }
             />
-          }
-        />
-      ) : (
-        // ── Setup view ──
-        <ScrollView
-          style={s.scroll}
-          contentContainerStyle={s.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <SessionSetup {...sessionSetupProps} />
+          ) : (
+            // ── Setup view ──
+            <ScrollView
+              style={s.scroll}
+              contentContainerStyle={s.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <SessionSetup {...sessionSetupProps} />
 
-          <SessionSummary
-            selectedCourse={selectedCourse}
-            selectedSemester={selectedSemester}
-            selectedSubject={selectedSubject}
-            selectedTime={selectedTime}
-          />
+              <SessionSummary
+                selectedCourse={selectedCourse}
+                selectedSemester={selectedSemester}
+                selectedSubject={selectedSubject}
+                selectedTime={selectedTime}
+              />
 
-          {/* Student loading / message states */}
-          {loading.students ? (
-            <View style={s.loadingCard}>
-              <ActivityIndicator size="large" color={C.primary} />
-              <Text style={s.loadingText}>Loading student roster...</Text>
-            </View>
-          ) : studentsMessage ? (
-            <View style={s.warnCard}>
-              <AlertCircle size={28} color={C.warn} />
-              <Text style={s.warnTitle}>Notice</Text>
-              <Text style={s.warnText}>{studentsMessage}</Text>
-            </View>
+              {/* Student loading / message states */}
+              {loading.students ? (
+                <View style={s.loadingCard}>
+                  <ActivityIndicator size="large" color={C.primary} />
+                  <Text style={s.loadingText}>Loading student roster...</Text>
+                </View>
+              ) : studentsMessage ? (
+                <View style={s.warnCard}>
+                  <AlertCircle size={28} color={C.warn} />
+                  <Text style={s.warnTitle}>Notice</Text>
+                  <Text style={s.warnText}>{studentsMessage}</Text>
+                </View>
+              ) : null}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Page 1: Reports */}
+        <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+          <ReportsScreen facultyName={facultyName} />
+        </View>
+
+        {/* Page 2: Profile */}
+        <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+          {allRecords[0] ? (
+            <ProfileScreen record={allRecords[0]} onLogout={handleLogout} />
           ) : null}
-        </ScrollView>
-      ))}
+        </View>
+      </ScrollView>
 
       {/* ── Floating Action Button (FAB) ── */}
       {activeTab === "dashboard" && (
@@ -588,15 +644,20 @@ export default function FacultyDashboard() {
         label={picker.label}
         options={picker.options}
         selected={picker.selected}
-        onSelect={picker.onSelect ?? (() => {})}
+        onSelect={picker.onSelect ?? (() => { })}
         onClose={closePicker}
       />
 
       {/* ── Bottom Navigation ── */}
-      <BottomNav activeTab={activeTab} onTabPress={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabPress={handleTabPress} />
 
-      {/* ── Success Animation Overlay ── */}
-      <SuccessOverlay visible={showSuccess} onComplete={() => setShowSuccess(false)} />
+      {/* ── Notification Banner ── */}
+      <NotificationBanner
+        visible={notification.visible}
+        message={notification.message}
+        type={notification.type}
+        onClose={hideBanner}
+      />
     </SafeAreaView>
   );
 }
@@ -606,6 +667,7 @@ export default function FacultyDashboard() {
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
+  tabContent: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 16,
@@ -681,7 +743,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 22,
-    paddingVertical: 13,
+    paddingVertical: 18,
     gap: 8,
   },
   fabText: {

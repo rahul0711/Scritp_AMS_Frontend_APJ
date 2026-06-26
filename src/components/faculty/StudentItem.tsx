@@ -1,8 +1,8 @@
+import { Student } from "@/services/auth";
+import { Check } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Check } from "lucide-react-native";
 import { C } from "./Theme";
-import { Student } from "@/services/auth";
 
 /** Fixed row height — must match STUDENT_ITEM_HEIGHT in StudentRoster */
 export const STUDENT_ITEM_HEIGHT = 76;
@@ -40,7 +40,7 @@ export const StudentItem = React.memo(
           <Text style={styles.name} numberOfLines={1}>
             {student.nameAsPerMarksheet}
           </Text>
-          <Text style={styles.enroll}>#{student.enrollmentNo}</Text>
+          <Text style={styles.enroll}>{student.enrollmentNo}</Text>
         </View>
 
         {/* Status badge */}

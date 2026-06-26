@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { LayoutAnimation, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
 import {
   BookOpen,
   ChevronDown,
@@ -52,6 +53,16 @@ export const SessionSetup = React.memo(({
   onSubmit,
 }: SessionSetupProps) => {
   const [collapsed, setCollapsed] = useState(false);
+
+  const toggleCollapse = () => {
+    LayoutAnimation.configureNext({
+      duration: 250,
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    });
+    setCollapsed((c) => !c);
+  };
 
   const selectedCount = useMemo(
     () => [selectedCourse, selectedSemester, selectedSubject, selectedTime].filter(Boolean).length,
@@ -108,7 +119,7 @@ export const SessionSetup = React.memo(({
 
           {/* Collapse / Expand toggle */}
           <TouchableOpacity
-            onPress={() => setCollapsed((c) => !c)}
+            onPress={toggleCollapse}
             style={styles.collapseBtn}
             activeOpacity={0.8}
           >
@@ -121,47 +132,52 @@ export const SessionSetup = React.memo(({
       </LinearGradient>
 
       {/* ── Filter Rows (hidden when collapsed) ── */}
-      {!collapsed && <View style={styles.filtersBody}>
-        <FilterRow
-          label="Programme / Course"
-          icon={<GraduationCap size={18} color={selectedCourse ? C.white : C.primaryMid} />}
-          value={selectedCourse?.name ?? null}
-          selected={!!selectedCourse}
-          onPress={onPressCourse}
-        />
-        <FilterRow
-          label="Semester"
-          icon={<Layers size={18} color={selectedSemester ? C.white : C.primaryMid} />}
-          value={selectedSemester?.name ?? null}
-          selected={!!selectedSemester}
-          isLoading={loadingSemesters}
-          onPress={onPressSemester}
-        />
-        <FilterRow
-          label="Subject"
-          icon={<BookOpen size={18} color={selectedSubject ? C.white : C.primaryMid} />}
-          value={selectedSubject?.name ?? null}
-          selected={!!selectedSubject}
-          isLoading={loadingSubjects}
-          onPress={onPressSubject}
-        />
-        <FilterRow
-          label="Time Slot"
-          icon={<Clock size={18} color={selectedTime ? C.white : C.primaryMid} />}
-          value={selectedTime?.name ?? null}
-          selected={!!selectedTime}
-          isLoading={loadingTime}
-          onPress={onPressTime}
-        />
+      {!collapsed && (
+        <Animated.View
+          entering={FadeInUp.duration(200)}
+          exiting={FadeOutUp.duration(150)}
+          style={styles.filtersBody}
+        >
+          <FilterRow
+            label="Programme / Course"
+            icon={<GraduationCap size={18} color={selectedCourse ? C.white : C.primaryMid} />}
+            value={selectedCourse?.name ?? null}
+            selected={!!selectedCourse}
+            onPress={onPressCourse}
+          />
+          <FilterRow
+            label="Semester"
+            icon={<Layers size={18} color={selectedSemester ? C.white : C.primaryMid} />}
+            value={selectedSemester?.name ?? null}
+            selected={!!selectedSemester}
+            isLoading={loadingSemesters}
+            onPress={onPressSemester}
+          />
+          <FilterRow
+            label="Subject"
+            icon={<BookOpen size={18} color={selectedSubject ? C.white : C.primaryMid} />}
+            value={selectedSubject?.name ?? null}
+            selected={!!selectedSubject}
+            isLoading={loadingSubjects}
+            onPress={onPressSubject}
+          />
+          <FilterRow
+            label="Time Slot"
+            icon={<Clock size={18} color={selectedTime ? C.white : C.primaryMid} />}
+            value={selectedTime?.name ?? null}
+            selected={!!selectedTime}
+            isLoading={loadingTime}
+            onPress={onPressTime}
+          />
 
-        {/* Reset link */}
-        {selectedCount > 0 && (
-          <TouchableOpacity onPress={onResetFilters} style={styles.resetRow} activeOpacity={0.7}>
-            <Text style={styles.resetText}>✕  Reset all filters</Text>
-          </TouchableOpacity>
-        )}
-
-      </View>}
+          {/* Reset link */}
+          {selectedCount > 0 && (
+            <TouchableOpacity onPress={onResetFilters} style={styles.resetRow} activeOpacity={0.7}>
+              <Text style={styles.resetText}>✕  Reset all filters</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      )}
     </View>
   );
 });
