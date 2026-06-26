@@ -332,7 +332,9 @@ export default function FacultyDashboard() {
         if (res.success && Array.isArray(res.students)) {
           setStudents(res.students);
           const init: Record<number, boolean> = {};
-          res.students.forEach((s) => { init[s.studentRegistrationId] = true; });
+          res.students.forEach((s) => {
+            init[s.studentRegistrationId] = s.attendanceStatus !== "A";
+          });
           setCheckedStudents(init);
         } else {
           setStudentsMessage(res.message || "No students found.");
@@ -383,7 +385,9 @@ export default function FacultyDashboard() {
       if (res.success && Array.isArray(res.students)) {
         setStudents(res.students);
         const init: Record<number, boolean> = {};
-        res.students.forEach((s) => { init[s.studentRegistrationId] = true; });
+        res.students.forEach((s) => {
+          init[s.studentRegistrationId] = s.attendanceStatus !== "A";
+        });
         setCheckedStudents(init);
       } else {
         setStudentsMessage(res.message || "No students found.");
@@ -408,6 +412,7 @@ export default function FacultyDashboard() {
         courseId: selectedCourse.id,
         semesterId: selectedSemester.id,
         subjectId: selectedSubject.id,
+        timeSlotId: selectedTime.id,
         attendanceDate: new Date().toISOString().split("T")[0],
         students: students.map((s) => ({
           StudentRegistrationId: s.studentRegistrationId,

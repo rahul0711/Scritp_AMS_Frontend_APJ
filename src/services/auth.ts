@@ -125,6 +125,7 @@ export type Student = {
   studentRegistrationId: number;
   enrollmentNo: string;
   nameAsPerMarksheet: string;
+  attendanceStatus?: string;
 };
 
 export type GetStudentsResponse = {
@@ -175,6 +176,7 @@ export type SaveAttendancePayload = {
   courseId: number;
   semesterId: number;
   subjectId: number;
+  timeSlotId: number;
   attendanceDate: string;
   students: StudentAttendanceInput[];
 };

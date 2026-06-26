@@ -230,6 +230,8 @@ export const StudentDashboardView = () => {
             enrollmentNo={studentData.enrollmentNo}
             semesterName={studentData.semesterName}
             initials={initials}
+            overallPercentage={overallPercentage}
+            attendance={attendance}
           />
 
           {loading ? (

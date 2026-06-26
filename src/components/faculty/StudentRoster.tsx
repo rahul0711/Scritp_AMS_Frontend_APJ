@@ -109,7 +109,7 @@ export const StudentRoster = React.memo(({
           >
             <View style={styles.statsLeft}>
               <Users size={18} color={C.white} />
-              <Text style={styles.statsTitle}>Student Roster</Text>
+              <Text style={styles.statsTitle}>Student List</Text>
               <View style={styles.totalPill}>
                 <Text style={styles.totalText}>{students.length}</Text>
               </View>
