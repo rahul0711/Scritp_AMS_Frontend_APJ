@@ -1,8 +1,29 @@
-import { AlertCircle, AlertTriangle, Bell, CheckCircle2, X } from "lucide-react-native";
-import React, { useState, useMemo } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  AlertTriangle,
+  Bell,
+  CheckCircle,
+  TrendingDown,
+  X,
+} from "lucide-react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { C } from "../faculty/Theme";
 import { StudentAttendance } from "@/services/auth";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+interface LowSubject extends StudentAttendance {
+  consecutiveNeeded: number;
+}
 
 interface StudentHeaderProps {
   greeting: string;
@@ -11,146 +32,319 @@ interface StudentHeaderProps {
   semesterName: string;
   initials: string;
   overallPercentage: number;
-  attendance: StudentAttendance[];
+  totalLectures: number;
+  presentLectures: number;
+  absentLectures: number;
+  lowAttendanceSubjects: LowSubject[];
 }
 
-export const StudentHeader = React.memo(({
-  greeting,
-  name,
-  enrollmentNo,
-  semesterName,
-  initials,
-  overallPercentage,
-  attendance,
-}: StudentHeaderProps) => {
-  const [modalVisible, setModalVisible] = useState(false);
+// ─────────────────────────────────────────────────────────────────────────────
+// Utility — derive per-card interpolated style from a single Animated.Value.
+// Staggering is achieved via input-range clamping (no nested useEffects).
+// ─────────────────────────────────────────────────────────────────────────────
+function cardStyle(anim: Animated.Value, index: number) {
+  // Each card starts animating a bit later than the previous one
+  const stagger = 0.14;
+  const start = Math.min(index * stagger, 0.6);
+  const end = Math.min(start + 0.45, 1);
 
-  // Compute notifications list dynamically when attendance data changes
-  const notifications = useMemo(() => {
-    const alerts = [];
+  return {
+    opacity: anim.interpolate({
+      inputRange: [0, start, end],
+      outputRange: [0, 0, 1],
+      extrapolate: "clamp",
+    }),
+    transform: [
+      {
+        translateY: anim.interpolate({
+          inputRange: [0, start, end],
+          outputRange: [18, 18, 0],
+          extrapolate: "clamp",
+        }),
+      },
+      {
+        scale: anim.interpolate({
+          inputRange: [0, start, end],
+          outputRange: [0.94, 0.94, 1],
+          extrapolate: "clamp",
+        }),
+      },
+    ],
+  } as const;
+}
 
-    // Check overall attendance
-    if (overallPercentage < 75) {
-      alerts.push({
-        id: "overall",
-        title: "Low Overall Attendance",
-        message: `Your overall attendance is ${overallPercentage}%, which is below the minimum required 75%. Please attend more classes to improve it.`,
-        type: "danger" as const,
-      });
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// Inline mini progress bar — no extra component, no extra animation state
+// ─────────────────────────────────────────────────────────────────────────────
+const ProgressBar = React.memo(
+  ({ pct, color }: { pct: number; color: string }) => (
+    <View style={n.track}>
+      <View
+        style={[n.fill, { width: `${Math.min(pct, 100)}%` as any, backgroundColor: color }]}
+      />
+      <View style={n.marker} />
+    </View>
+  )
+);
 
-    // Check per-subject attendance
-    attendance.forEach((subject) => {
-      if (subject.totalLectures > 0 && subject.attendancePercentage < 75) {
-        alerts.push({
-          id: `subject-${subject.subjectId}`,
-          title: `${subject.subjectName} Warning`,
-          message: `Your attendance in ${subject.subjectName} is ${subject.attendancePercentage}%, which is below the required 75%.`,
-          type: "warning" as const,
-        });
-      }
+// ─────────────────────────────────────────────────────────────────────────────
+// NotificationPanel — ONE Animated.Value drives ALL visual changes
+// ─────────────────────────────────────────────────────────────────────────────
+interface PanelProps {
+  visible: boolean;
+  onClose: () => void;
+  overallPercentage: number;
+  totalLectures: number;
+  presentLectures: number;
+  absentLectures: number;
+  lowAttendanceSubjects: LowSubject[];
+}
+
+const NotificationPanel = React.memo(
+  ({
+    visible,
+    onClose,
+    overallPercentage,
+    totalLectures,
+    presentLectures,
+    absentLectures,
+    lowAttendanceSubjects,
+  }: PanelProps) => {
+    // Single driver: 0 = closed, 1 = open
+    const anim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      Animated.spring(anim, {
+        toValue: visible ? 1 : 0,
+        damping: 22,
+        stiffness: 180,
+        useNativeDriver: true,
+      }).start();
+    }, [visible]);
+
+    // Backdrop fades from 0 → 0.6 opacity
+    const backdropOpacity = anim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 0.6],
     });
 
-    return alerts;
-  }, [overallPercentage, attendance]);
+    // Header row slides + fades in first
+    const headerStyle = {
+      opacity: anim.interpolate({ inputRange: [0, 0.3, 0.7], outputRange: [0, 0, 1], extrapolate: "clamp" }),
+      transform: [
+        {
+          translateY: anim.interpolate({
+            inputRange: [0, 0.3, 0.7],
+            outputRange: [-8, -8, 0],
+            extrapolate: "clamp",
+          }),
+        },
+      ],
+    } as const;
 
-  return (
-    <View style={styles.header}>
-      <View style={styles.headerLeft}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials}</Text>
-        </View>
-        <View style={styles.headerInfo}>
-          <Text style={styles.greeting}>{greeting},</Text>
-          <Text style={styles.studentName} numberOfLines={1}>{name}</Text>
-          <Text style={styles.headerSub}>
-            {enrollmentNo}  ·  Sem {semesterName}
-          </Text>
-        </View>
-      </View>
-      <TouchableOpacity
-        style={styles.iconBtn}
-        activeOpacity={0.7}
-        onPress={() => setModalVisible(true)}
-      >
-        <Bell size={20} color={C.textMuted} />
-        {notifications.length > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{notifications.length}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+    const isOverallSafe = overallPercentage >= 75;
+    const isOverallWarn = overallPercentage >= 65 && overallPercentage < 75;
+    const overallColor = isOverallSafe ? C.success : isOverallWarn ? C.warn : C.danger;
+    const overallLabel = isOverallSafe ? "Safe" : isOverallWarn ? "At Risk" : "Critical";
+    const alertCount = lowAttendanceSubjects.length;
 
+    return (
       <Modal
-        visible={modalVisible}
+        visible={visible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        animationType="none"
+        onRequestClose={onClose}
+        statusBarTranslucent
       >
-        <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.handle} />
-            
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Attendance Alerts</Text>
-              <TouchableOpacity
-                style={styles.closeBtn}
-                onPress={() => setModalVisible(false)}
-                activeOpacity={0.7}
-              >
-                <X size={20} color={C.textMuted} />
-              </TouchableOpacity>
+        {/* ── Backdrop: dimmed, tap to dismiss ── */}
+        <Animated.View
+          style={[n.backdrop, { opacity: backdropOpacity }]}
+          pointerEvents={visible ? "auto" : "none"}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        </Animated.View>
+
+        {/* ── Floating notification column ── */}
+        <View style={n.column} pointerEvents="box-none">
+
+          {/* Section label */}
+          <Animated.View style={[n.sectionRow, headerStyle]}>
+            <Bell size={13} color="rgba(255,255,255,0.7)" />
+            <Text style={n.sectionText}>Attendance Alerts</Text>
+            {alertCount > 0 && (
+              <View style={n.sectionBadge}>
+                <Text style={n.sectionBadgeText}>{alertCount}</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={n.closeBtn}
+              onPress={onClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.7}
+            >
+              <X size={13} color="rgba(255,255,255,0.75)" />
+            </TouchableOpacity>
+          </Animated.View>
+
+          {/* ── Card 0: Overall Attendance ── */}
+          <Animated.View style={[n.card, cardStyle(anim, 0)]}>
+            <View style={[n.iconBox, { backgroundColor: `${overallColor}1A` }]}>
+              {isOverallSafe
+                ? <CheckCircle size={20} color={overallColor} />
+                : <AlertTriangle size={20} color={overallColor} />}
             </View>
-            
-            {/* Scrollable Alerts List */}
-            <ScrollView contentContainerStyle={styles.notificationList} showsVerticalScrollIndicator={false}>
-              {notifications.length === 0 ? (
-                <View style={styles.emptyContainer}>
-                  <CheckCircle2 size={48} color={C.success} style={{ marginBottom: 12 }} />
-                  <Text style={styles.emptyTitle}>All Clear!</Text>
-                  <Text style={styles.emptyMessage}>
-                    Your attendance is on track. Keep up the good work!
-                  </Text>
-                </View>
-              ) : (
-                notifications.map((notif) => (
-                  <View
-                    key={notif.id}
-                    style={[
-                      styles.notificationCard,
-                      notif.type === "danger" ? styles.dangerCard : styles.warningCard
-                    ]}
-                  >
-                    <View style={styles.cardHeader}>
-                      {notif.type === "danger" ? (
-                        <AlertCircle size={20} color={C.danger} />
-                      ) : (
-                        <AlertTriangle size={20} color={C.warn} />
-                      )}
-                      <Text
-                        style={[
-                          styles.cardTitle,
-                          notif.type === "danger" ? styles.dangerText : styles.warningText
-                        ]}
-                      >
-                        {notif.title}
-                      </Text>
-                    </View>
-                    <Text style={styles.cardMessage}>{notif.message}</Text>
+            <View style={n.body}>
+              <View style={n.topRow}>
+                <Text style={n.cardHeading}>Overall Attendance</Text>
+                <Text style={[n.bigPct, { color: overallColor }]}>
+                  {overallPercentage}%
+                </Text>
+              </View>
+              <View style={n.statusRow}>
+                <View style={[n.dot, { backgroundColor: overallColor }]} />
+                <Text style={[n.statusLabel, { color: overallColor }]}>{overallLabel}</Text>
+                <Text style={n.meta}>
+                  · {presentLectures}P · {absentLectures}A · {totalLectures} total
+                </Text>
+              </View>
+              <ProgressBar pct={overallPercentage} color={overallColor} />
+            </View>
+          </Animated.View>
+
+          {/* ── Cards: low-attendance subjects ── */}
+          {alertCount > 0 ? (
+            lowAttendanceSubjects.map((item, idx) => {
+              const pct = item.attendancePercentage;
+              const color = pct < 65 ? C.danger : C.warn;
+              return (
+                <Animated.View
+                  key={item.subjectId}
+                  style={[n.card, cardStyle(anim, idx + 1)]}
+                >
+                  <View style={[n.iconBox, { backgroundColor: `${color}1A` }]}>
+                    <AlertTriangle size={20} color={color} />
                   </View>
-                ))
-              )}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
+                  <View style={n.body}>
+                    <View style={n.topRow}>
+                      <Text style={n.cardHeading} numberOfLines={1}>
+                        {item.subjectName}
+                      </Text>
+                      <Text style={[n.bigPct, { color, fontSize: 17 }]}>{pct}%</Text>
+                    </View>
+                    <Text style={n.meta}>
+                      {item.presentLectures}/{item.totalLectures} classes attended
+                    </Text>
+                    <ProgressBar pct={pct} color={color} />
+                    {item.consecutiveNeeded > 0 && (
+                      <View style={n.needRow}>
+                        <TrendingDown size={11} color={C.danger} />
+                        <Text style={n.needText}>
+                          Need {item.consecutiveNeeded} more consecutive classes
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Animated.View>
+              );
+            })
+          ) : (
+            /* All clear */
+            <Animated.View style={[n.card, cardStyle(anim, 1)]}>
+              <View style={[n.iconBox, { backgroundColor: `${C.success}1A` }]}>
+                <CheckCircle size={20} color={C.success} />
+              </View>
+              <View style={n.body}>
+                <Text style={n.cardHeading}>All Subjects Clear</Text>
+                <Text style={n.meta}>Every subject is above 75% attendance.</Text>
+              </View>
+            </Animated.View>
+          )}
+        </View>
       </Modal>
-    </View>
-  );
-});
+    );
+  }
+);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// StudentHeader
+// ─────────────────────────────────────────────────────────────────────────────
+export const StudentHeader = React.memo(
+  ({
+    greeting,
+    name,
+    enrollmentNo,
+    semesterName,
+    initials,
+    overallPercentage,
+    totalLectures,
+    presentLectures,
+    absentLectures,
+    lowAttendanceSubjects,
+  }: StudentHeaderProps) => {
+    const [panelVisible, setPanelVisible] = useState(false);
+    const bellScale = useRef(new Animated.Value(1)).current;
+    const hasAlerts = lowAttendanceSubjects.length > 0;
 
-const styles = StyleSheet.create({
+    const handleBellPress = useCallback(() => {
+      Animated.sequence([
+        Animated.timing(bellScale, { toValue: 1.3, duration: 80, useNativeDriver: true }),
+        Animated.spring(bellScale, { toValue: 1, damping: 8, stiffness: 300, useNativeDriver: true }),
+      ]).start();
+      setPanelVisible(true);
+    }, [bellScale]);
+
+    const handleClose = useCallback(() => setPanelVisible(false), []);
+
+    return (
+      <>
+        <View style={s.header}>
+          <View style={s.left}>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>{initials}</Text>
+            </View>
+            <View style={s.info}>
+              <Text style={s.greeting}>{greeting},</Text>
+              <Text style={s.name} numberOfLines={1}>{name}</Text>
+              <Text style={s.sub}>{enrollmentNo}  ·  Sem {semesterName}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[s.bellBtn, hasAlerts && s.bellBtnAlert]}
+            activeOpacity={0.75}
+            onPress={handleBellPress}
+          >
+            <Animated.View style={{ transform: [{ scale: bellScale }] }}>
+              <Bell size={20} color={hasAlerts ? C.danger : C.textMuted} />
+            </Animated.View>
+            {hasAlerts && (
+              <View style={s.badge}>
+                <Text style={s.badgeText}>
+                  {lowAttendanceSubjects.length > 9 ? "9+" : lowAttendanceSubjects.length}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <NotificationPanel
+          visible={panelVisible}
+          onClose={handleClose}
+          overallPercentage={overallPercentage}
+          totalLectures={totalLectures}
+          presentLectures={presentLectures}
+          absentLectures={absentLectures}
+          lowAttendanceSubjects={lowAttendanceSubjects}
+        />
+      </>
+    );
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Header styles
+// ─────────────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -161,15 +355,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: C.border,
   },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  headerInfo: {
-    flex: 1,
-  },
+  left: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  info: { flex: 1 },
   avatar: {
     width: 48,
     height: 48,
@@ -180,148 +367,155 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.primaryBorder,
   },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: C.primaryMid,
-  },
-  greeting: {
-    fontSize: 12,
-    color: C.textMuted,
-    fontWeight: "500",
-  },
-  studentName: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: C.text,
-  },
-  headerSub: {
-    fontSize: 11,
-    color: C.textLight,
-    fontWeight: "600",
-    marginTop: 1,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  avatarText: { fontSize: 18, fontWeight: "800", color: C.primaryMid },
+  greeting: { fontSize: 12, color: C.textMuted, fontWeight: "500" },
+  name: { fontSize: 17, fontWeight: "800", color: C.text },
+  sub: { fontSize: 11, color: C.textLight, fontWeight: "600", marginTop: 1 },
+  bellBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F3F4F6",
-    position: "relative",
+  },
+  bellBtnAlert: {
+    backgroundColor: "#FEE2E2",
+    borderWidth: 1.5,
+    borderColor: "#FECACA",
   },
   badge: {
     position: "absolute",
-    top: -2,
-    right: -2,
+    top: -3,
+    right: -3,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
     backgroundColor: C.danger,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     borderWidth: 1.5,
     borderColor: C.white,
   },
-  badgeText: {
-    color: C.white,
-    fontSize: 9,
-    fontWeight: "800",
+  badgeText: { fontSize: 9, fontWeight: "800", color: C.white, lineHeight: 12 },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notification styles
+// ─────────────────────────────────────────────────────────────────────────────
+const n = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "#000",
   },
-  overlay: {
+  column: {
+    position: "absolute",
+    top: 54,
+    left: 14,
+    right: 14,
+    gap: 9,
+  },
+
+  // Section title row
+  sectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 4,
+    marginBottom: 2,
+  },
+  sectionText: {
     flex: 1,
-    backgroundColor: "rgba(10, 24, 50, 0.65)",
-    justifyContent: "flex-end",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.8)",
+    letterSpacing: 0.2,
   },
-  sheet: {
-    backgroundColor: C.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "80%",
-    minHeight: "45%",
-    paddingBottom: 34,
+  sectionBadge: {
+    backgroundColor: C.danger,
+    borderRadius: 8,
+    minWidth: 17,
+    height: 17,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#E2E8F0",
-    alignSelf: "center",
-    marginTop: 10,
+  sectionBadgeText: { fontSize: 10, fontWeight: "800", color: "#fff" },
+  closeBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  modalHeader: {
+
+  // Notification card
+  card: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 11,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderRadius: 16,
+    padding: 13,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  // Left rounded icon square
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  // Card content
+  body: { flex: 1, gap: 3 },
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderColor: "#F1F5F9",
+    gap: 6,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: C.text,
+  cardHeading: { flex: 1, fontSize: 13, fontWeight: "700", color: C.text },
+  bigPct: { fontSize: 19, fontWeight: "900", letterSpacing: -0.5 },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  statusLabel: { fontSize: 11, fontWeight: "700" },
+  meta: { fontSize: 11, color: C.textMuted, fontWeight: "500" },
+
+  // Progress bar
+  track: {
+    marginTop: 6,
+    height: 4,
+    backgroundColor: "rgba(0,0,0,0.07)",
+    borderRadius: 2,
+    overflow: "hidden",
+    position: "relative",
   },
-  closeBtn: {
-    padding: 4,
+  fill: { position: "absolute", top: 0, left: 0, bottom: 0, borderRadius: 2 },
+  marker: {
+    position: "absolute",
+    left: "75%",
+    top: -1,
+    bottom: -1,
+    width: 1.5,
+    backgroundColor: "rgba(0,0,0,0.18)",
   },
-  notificationList: {
-    padding: 20,
-    gap: 12,
-  },
-  notificationCard: {
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  dangerCard: {
-    backgroundColor: C.dangerBg,
-    borderColor: C.dangerBorder,
-  },
-  warningCard: {
-    backgroundColor: C.warnBg,
-    borderColor: C.warnBorder,
-  },
-  cardHeader: {
+
+  // Need-more chip
+  needRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 6,
+    gap: 4,
+    marginTop: 3,
   },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  dangerText: {
-    color: C.dangerDark,
-  },
-  warningText: {
-    color: C.warn,
-  },
-  cardMessage: {
-    fontSize: 13,
-    color: "#334155",
-    lineHeight: 18,
-    fontWeight: "500",
-  },
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: C.text,
-    marginBottom: 6,
-  },
-  emptyMessage: {
-    fontSize: 13,
-    color: C.textMuted,
-    textAlign: "center",
-    maxWidth: 240,
-    lineHeight: 18,
-  },
+  needText: { fontSize: 11, fontWeight: "600", color: C.danger, flex: 1 },
 });

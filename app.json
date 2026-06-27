@@ -1,22 +1,18 @@
 {
   "expo": {
-    "name": "APJ_PROJECT",
-    "slug": "APJ_PROJECT",
+    "name": "APJ AMS",
+    "slug": "apj-AMS",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
-    "scheme": "apjproject",
+    "icon": "./assets/iconlogo.png",
+    "scheme": "APJ-AMS",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/logo.png",
+      "icon": "./assets/logoo.png",
       "bundleIdentifier": "com.sonu159753.APJ-PROJECT"
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#208AEF",
-        "foregroundImage": "./assets/logo.png",
-        "monochromeImage": "./assets/logo.png"
-      },
+     
       "predictiveBackGestureEnabled": false,
       "package": "com.sonu159753.APJ_PROJECT"
     },
@@ -26,16 +22,7 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/logo.png",
-            "imageWidth": 76
-          }
-        }
-      ]
+      
     ],
     "experiments": {
       "typedRoutes": true,

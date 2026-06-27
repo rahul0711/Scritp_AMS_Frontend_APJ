@@ -215,9 +215,7 @@ export default function LoginScreen() {
                 <Text style={styles.logoIndiaSmall}>INDIA</Text>
               </View>
             </View>
-            <Text style={styles.footerSubtitle}>
-              Empowering Education with Technology
-            </Text>
+
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
