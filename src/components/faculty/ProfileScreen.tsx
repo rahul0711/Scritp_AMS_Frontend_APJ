@@ -12,7 +12,6 @@ import {
   Mail,
   Phone,
   Shield,
-  UserCircle,
 } from "lucide-react-native";
 import React from "react";
 import {
@@ -27,13 +26,42 @@ import {
 import { NotificationBanner } from "./NotificationBanner";
 import { C } from "./Theme";
 
+// ─── Types ───────────────────────────────────────────────────────────────────
 interface ProfileScreenProps {
-  record?: UserData;
+  /** Pass the full array returned by the API (one item per course/sem/subject) */
+  allRecords: UserData[];
   onLogout: () => void;
 }
 
-export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProps) => {
-  if (!record) return null;
+type SemesterGroup = { semesterId: number; semesterName: string; subjects: { subjectId: number; subjectName: string }[] };
+type CourseGroup  = { courseId: number; courseName: string; semesters: SemesterGroup[] };
+
+/** Group flat UserData[] → CourseGroup[] */
+function groupByCourse(records: UserData[]): CourseGroup[] {
+  const courseMap = new Map<number, CourseGroup>();
+  for (const r of records) {
+    if (!courseMap.has(r.courseId)) {
+      courseMap.set(r.courseId, { courseId: r.courseId, courseName: r.courseName, semesters: [] });
+    }
+    const course = courseMap.get(r.courseId)!;
+    let sem = course.semesters.find((s) => s.semesterId === r.semesterId);
+    if (!sem) {
+      sem = { semesterId: r.semesterId, semesterName: r.semesterName, subjects: [] };
+      course.semesters.push(sem);
+    }
+    if (!sem.subjects.find((sub) => sub.subjectId === r.subjectId)) {
+      sem.subjects.push({ subjectId: r.subjectId, subjectName: r.subjectName });
+    }
+  }
+  return Array.from(courseMap.values());
+}
+
+export const ProfileScreen = React.memo(({ allRecords, onLogout }: ProfileScreenProps) => {
+  if (!allRecords || allRecords.length === 0) return null;
+
+  // Use first record for common fields (name, email, phone, userType – same across all rows)
+  const record = allRecords[0];
+  const courseGroups = React.useMemo(() => groupByCourse(allRecords), [allRecords]);
 
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [oldPassword, setOldPassword] = React.useState("");
@@ -103,11 +131,9 @@ export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProp
     .toUpperCase();
 
   const infoRows = [
-    { Icon: Mail, label: "Email", value: record.emailId ?? "Not provided" },
-    { Icon: Phone, label: "Contact", value: record.contactNo ?? "Not provided" },
-    { Icon: Shield, label: "User Type", value: record.userType === "2" ? "Faculty" : record.userType },
-    { Icon: GraduationCap, label: "Programme", value: record.courseName },
-    { Icon: BookOpen, label: "Subject", value: record.subjectName },
+    { Icon: Mail,        label: "Email",     value: record.emailId   ?? "Not provided" },
+    { Icon: Phone,       label: "Contact",   value: record.contactNo ?? "Not provided" },
+    { Icon: Shield,      label: "User Type", value: record.userType === "2" ? "Faculty" : record.userType },
   ];
 
   return (
@@ -256,6 +282,42 @@ export const ProfileScreen = React.memo(({ record, onLogout }: ProfileScreenProp
           ))}
         </View>
 
+        {/* Assigned Courses card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.sectionTitle}>Assigned Courses</Text>
+          {courseGroups.map((course, ci) => (
+            <View key={course.courseId} style={[styles.courseBlock, ci > 0 && styles.courseBlockBorder]}>
+              {/* Course header */}
+              <View style={styles.courseHeader}>
+                <View style={styles.courseIconWrap}>
+                  <GraduationCap size={15} color={C.primaryMid} />
+                </View>
+                <Text style={styles.courseName}>{course.courseName}</Text>
+              </View>
+
+              {course.semesters.map((sem) => (
+                <View key={sem.semesterId} style={styles.semBlock}>
+                  {/* Semester label */}
+                  <View style={styles.semHeader}>
+                    <View style={styles.semDot} />
+                    <Text style={styles.semName}>Semester: {sem.semesterName}</Text>
+                  </View>
+
+                  {/* Subjects */}
+                  <View style={styles.subjectList}>
+                    {sem.subjects.map((sub) => (
+                      <View key={sub.subjectId} style={styles.subjectChip}>
+                        <BookOpen size={11} color={C.primaryMid} style={{ marginRight: 4 }} />
+                        <Text style={styles.subjectChipText}>{sub.subjectName}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+
       
 
 
@@ -356,6 +418,48 @@ const styles = StyleSheet.create({
   infoText: { flex: 1 },
   infoLabel: { fontSize: 10.5, fontWeight: "700", color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 },
   infoValue: { fontSize: 14, fontWeight: "700", color: C.text },
+
+  // ── Assigned Courses Card ──────────────────────────────────────────────────
+  courseBlock: { paddingVertical: 10 },
+  courseBlockBorder: { borderTopWidth: 1, borderTopColor: C.border },
+  courseHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  courseIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: C.primaryBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  courseName: { fontSize: 14, fontWeight: "800", color: C.text, flex: 1 },
+
+  semBlock: { paddingLeft: 36, marginBottom: 6 },
+  semHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  semDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: C.primaryMid,
+  },
+  semName: { fontSize: 12, fontWeight: "700", color: C.primaryMid, textTransform: "uppercase", letterSpacing: 0.4 },
+
+  subjectList: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingLeft: 13 },
+  subjectChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C.primaryBg,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  subjectChipText: { fontSize: 12, fontWeight: "600", color: C.text },
 
   // Logout
   logoutBtn: {

@@ -603,8 +603,8 @@ export default function FacultyDashboard() {
 
         {/* Page 2: Profile */}
         <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-          {allRecords[0] ? (
-            <ProfileScreen record={allRecords[0]} onLogout={handleLogout} />
+          {allRecords.length > 0 ? (
+            <ProfileScreen allRecords={allRecords} onLogout={handleLogout} />
           ) : null}
         </View>
       </ScrollView>
